@@ -2,25 +2,35 @@ extends RefCounted
 
 const Dados := preload("res://dados.gd")
 
-const COLUNAS := 12
-const LINHAS := 4
+const COLUNAS := 20
+const LINHAS := 7
 const CELULA := Vector2(102, 96)
-const ORIGEM_GRADE := Vector2(28, 118)
+const ORIGEM_GRADE := Vector2(12, 12)
 const TAMANHO_NO := Vector2(86, 80)
 const VELOCIDADE := 200.0
 const MAX_SALTOS := 30
 const CAPACIDADE := 100.0
 const TEMPO_QUEDA := 5.0
+const TEMPO_INVASAO := 8.0
+const TEMPO_SEQUESTRO := 10.0
+const FATOR_COMPROMETIDA := 0.4
 const PACIENCIA := 6.0
 const CUSTO_NUVEM := 4.0
 const LIMITE_BLOQUEIO := 0.97
-const MAX_EFEITOS := 160
-const PERDA_HUMANO := 0.5
+const MAX_EFEITOS := 220
+const PERDA_HUMANO := 0.35
 const PERDA_FALSO := 0.2
-const PERDA_VAZAMENTO := 0.8
+const PERDA_VAZAMENTO := 0.6
+const PERDA_SQLI := 1.2
+const PERDA_XSS := 0.5
+const PERDA_INVASAO := 0.4
 const MULTA_VAZAMENTO := 18.0
+const MULTA_SQLI := 30.0
+const MULTA_XSS := 8.0
 const PREJUIZO_SCRAPER := 3.0
 const INTERVALO_TEXTO := 1.5
+const REDUCAO_CODIGO := 0.15
+const BONUS_PENTEST := 0.15
 
 var nome := ""
 var foco := ""
@@ -43,6 +53,8 @@ var peso := 1.0
 var receita_humano := 8.0
 var custo_queda := 60.0
 var falso_geo := 1.0
+var codigo_seguro := 0
+var reforcos: Dictionary = {}
 var receita := 0.0
 var prejuizo := 0.0
 var reputacao_perdida := 0.0
@@ -52,8 +64,8 @@ func _init(nome_site := "Site", foco_site := "", mult := 1.0) -> void:
 	nome = nome_site
 	foco = foco_site
 	multiplicador = mult
-	id_internet = adicionar_no("internet", Vector2i(0, 1))
-	var torre := adicionar_no("servidor", Vector2i(4, 1))
+	id_internet = adicionar_no("internet", Vector2i(0, 2))
+	var torre := adicionar_no("servidor", Vector2i(4, 2))
 	conectar(id_internet, torre)
 	zerar_estatisticas()
 
@@ -63,7 +75,7 @@ func zerar_estatisticas() -> void:
 		"humanos": 0, "servidos": 0, "cache": 0, "perdidos": {}, "bots": {}, "bloqueados": {},
 		"chegaram": {}, "bloqueio_por_componente": {}, "falsos_por_componente": {}, "quedas": 0,
 		"vazamentos": 0, "receita": 0.0, "prejuizo_queda": 0.0, "custo_nuvem": 0.0, "multas": 0.0,
-		"segundos_caido": 0.0, "tempo": 0.0, "enviados_caido": 0,
+		"segundos_caido": 0.0, "tempo": 0.0, "enviados_caido": 0, "invasoes": {}, "honeypot": 0,
 	}
 
 
@@ -76,6 +88,13 @@ func total(chave: String) -> int:
 	var soma := 0
 	for v in estatisticas[chave].values():
 		soma += v
+	return soma
+
+
+func total_tipos(chave: String, tipos: Array) -> int:
+	var soma := 0
+	for t in tipos:
+		soma += int(estatisticas[chave].get(t, 0))
 	return soma
 
 
@@ -107,6 +126,10 @@ func retangulo_no(id: int) -> Rect2:
 	return Rect2(centro_no(id) - TAMANHO_NO / 2, TAMANHO_NO)
 
 
+func tamanho_mundo() -> Vector2:
+	return ORIGEM_GRADE * 2 + CELULA * Vector2(COLUNAS, LINHAS)
+
+
 func porta_saida(id: int) -> Vector2:
 	return centro_no(id) + Vector2(TAMANHO_NO.x / 2, 0)
 
@@ -126,8 +149,16 @@ func eh_terminal(id: int) -> bool:
 	return nos.has(id) and nos[id]["tipo"] in Dados.TERMINAIS
 
 
+func eh_passivo(id: int) -> bool:
+	return nos.has(id) and nos[id]["tipo"] in Dados.PASSIVOS
+
+
 func tem_saida(id: int) -> bool:
-	return nos.has(id) and not eh_terminal(id)
+	return nos.has(id) and not eh_terminal(id) and not eh_passivo(id)
+
+
+func tem_entrada(id: int) -> bool:
+	return nos.has(id) and nos[id]["tipo"] != "internet" and not eh_passivo(id)
 
 
 func terminais() -> Array:
@@ -146,6 +177,21 @@ func ids_do_tipo(tipo: String) -> Array:
 	return lista
 
 
+func nivel_passivo(tipo: String) -> int:
+	var maior := 0
+	for id in nos:
+		if nos[id]["tipo"] == tipo:
+			maior = maxi(maior, int(nos[id]["nivel"]))
+	return maior
+
+
+func efeito_passivo(tipo: String) -> float:
+	var nivel := nivel_passivo(tipo)
+	if nivel == 0:
+		return 0.0
+	return Dados.COMPONENTES[tipo]["efeito"][nivel - 1]
+
+
 func adicionar_no(tipo: String, celula: Vector2i) -> int:
 	if not celula_valida(celula) or no_na_celula(celula) >= 0:
 		return -1
@@ -154,7 +200,7 @@ func adicionar_no(tipo: String, celula: Vector2i) -> int:
 	nos[id] = {
 		"id": id, "tipo": tipo, "nivel": 1, "celula": celula, "saidas": [], "rr": 0,
 		"carga": 0.0, "caido": 0.0, "escala": 1.0, "fila": [], "liberacao": 0.0,
-		"contagem": 0, "pulso": 0.0, "investido": 0.0, "texto_valor": 0.0, "texto_tempo": 0.0,
+		"contagem": 0, "pulso": 0.0, "investido": 0.0, "texto_valor": 0.0, "texto_tempo": 0.0, "sequestro": "",
 	}
 	return id
 
@@ -208,6 +254,8 @@ func pode_conectar(a: int, b: int) -> String:
 		return "Componente inválido"
 	if a == b:
 		return "Não dá para ligar um componente nele mesmo"
+	if eh_passivo(a) or eh_passivo(b):
+		return "Defesas da aba Segurança protegem o sistema inteiro e não precisam de conexão"
 	if eh_terminal(a):
 		return "Torres são o destino final: elas não têm saída"
 	if nos[b]["tipo"] == "internet":
@@ -266,7 +314,7 @@ func aresta_em(pos: Vector2, tolerancia := 8.0) -> Array:
 	return []
 
 
-func configurar_dia(taxa: float, mix_dia: Dictionary, sof: float, peso_dia: float, receita_h: float, custo_q: float, geo: float) -> void:
+func configurar_dia(taxa: float, mix_dia: Dictionary, sof: float, peso_dia: float, receita_h: float, custo_q: float, geo: float, codigo := 0, reforcos_dia := {}) -> void:
 	taxa_base = taxa
 	mix = mix_dia
 	sofisticacao = sof
@@ -274,6 +322,8 @@ func configurar_dia(taxa: float, mix_dia: Dictionary, sof: float, peso_dia: floa
 	receita_humano = receita_h
 	custo_queda = custo_q
 	falso_geo = geo
+	codigo_seguro = codigo
+	reforcos = reforcos_dia
 	tempo = 0.0
 	acumulador = 0.0
 	gerando = true
@@ -283,7 +333,7 @@ func configurar_dia(taxa: float, mix_dia: Dictionary, sof: float, peso_dia: floa
 func taxa_atual() -> float:
 	if not gerando:
 		return 0.0
-	return taxa_base * multiplicador * (1.0 + 0.3 * sin(tempo * 1.1))
+	return taxa_base * multiplicador * Dados.DENSIDADE * (1.0 + 0.3 * sin(tempo * 1.1))
 
 
 func vazio() -> bool:
@@ -424,6 +474,10 @@ func chegar(p: Dictionary, no: Dictionary) -> void:
 	encaminhar(p, no)
 
 
+func eh_hacker(tipo: String) -> bool:
+	return tipo in Dados.HACKERS
+
+
 func processar_filtro(p: Dictionary, no: Dictionary) -> bool:
 	var dados: Dictionary = Dados.COMPONENTES[no["tipo"]]
 	var nivel: int = no["nivel"] - 1
@@ -441,15 +495,21 @@ func processar_filtro(p: Dictionary, no: Dictionary) -> bool:
 			perder(p, "falso_positivo", no)
 			return true
 		return false
-	var bloqueios: Dictionary = dados.get("bloqueio", {})
-	var base: float = bloqueios.get(tipo, 0.0)
-	if base <= 0.0:
-		return false
-	var chance := minf(LIMITE_BLOQUEIO, base * Dados.MULT_NIVEL[nivel]) * (1.0 - sofisticacao)
-	if randf() < chance:
+	if randf() < chance_bloqueio(no["tipo"], nivel, tipo):
 		bloquear(p, no)
 		return true
 	return false
+
+
+func chance_bloqueio(tipo_no: String, nivel: int, tipo: String) -> float:
+	var bloqueios: Dictionary = Dados.COMPONENTES[tipo_no].get("bloqueio", {})
+	var base: float = bloqueios.get(tipo, 0.0)
+	if base <= 0.0:
+		return 0.0
+	var bonus := 1.0 + efeito_passivo("siem")
+	if eh_hacker(tipo) and reforcos.get("pentest", false):
+		bonus += BONUS_PENTEST
+	return minf(LIMITE_BLOQUEIO, base * Dados.MULT_NIVEL[nivel] * bonus) * (1.0 - sofisticacao)
 
 
 func adicionar_efeito(efeito: Dictionary) -> void:
@@ -467,6 +527,8 @@ func bloquear(p: Dictionary, no: Dictionary) -> void:
 	no["contagem"] += 1
 	var cor: Color = Dados.COMPONENTES[no["tipo"]]["cor"]
 	var cor_bot: Color = Dados.TIPOS_REQ[p["tipo"]]["cor"]
+	if randf() > 0.6 and efeitos.size() > MAX_EFEITOS * 0.7:
+		return
 	match no["tipo"]:
 		"captcha":
 			adicionar_efeito({"tipo": "captcha", "pos": p["pos"], "alvo": centro_no(no["id"]) + Vector2(0, -TAMANHO_NO.y / 2), "cor": cor, "cor_bot": cor_bot, "duracao": 0.9})
@@ -478,14 +540,16 @@ func bloquear(p: Dictionary, no: Dictionary) -> void:
 
 func servir(p: Dictionary, no: Dictionary, cache: bool) -> void:
 	p["remover"] = true
+	var valor := receita_humano * Dados.ESCALA_PACOTE
 	estatisticas["servidos"] += 1
-	estatisticas["receita"] += receita_humano
-	receita += receita_humano
+	estatisticas["receita"] += valor
+	receita += valor
 	if cache:
 		estatisticas["cache"] += 1
 		no["contagem"] += 1
-		adicionar_efeito({"tipo": "cache", "pos": p["pos"], "cor": Dados.COMPONENTES[no["tipo"]]["cor"], "duracao": 0.6})
-	no["texto_valor"] += receita_humano
+		if efeitos.size() < MAX_EFEITOS * 0.7:
+			adicionar_efeito({"tipo": "cache", "pos": p["pos"], "cor": Dados.COMPONENTES[no["tipo"]]["cor"], "duracao": 0.6})
+	no["texto_valor"] += valor
 
 
 func perder(p: Dictionary, motivo: String, no: Dictionary) -> void:
@@ -495,7 +559,7 @@ func perder(p: Dictionary, motivo: String, no: Dictionary) -> void:
 	if p["tipo"] != "humano":
 		return
 	somar("perdidos", motivo)
-	reputacao_perdida += PERDA_FALSO if motivo == "falso_positivo" else PERDA_HUMANO
+	reputacao_perdida += (PERDA_FALSO if motivo == "falso_positivo" else PERDA_HUMANO) * Dados.ESCALA_PACOTE
 	adicionar_efeito({"tipo": "perdido", "pos": p["pos"], "cor": Color("fbbf24"), "duracao": 0.6})
 	registrar_ocorrencia(motivo, no.get("id", -1))
 
@@ -507,30 +571,114 @@ func registrar_ocorrencia(motivo: String, id := -1) -> void:
 	eventos.append({"tipo": "primeira", "motivo": motivo, "no": id})
 
 
+func multa(valor: float) -> void:
+	if reforcos.get("seguro", false):
+		return
+	var fator := 1.0
+	var cripto := efeito_passivo("criptografia")
+	if cripto > 0.0:
+		fator = cripto
+	var final := valor * fator * peso * Dados.ESCALA_PACOTE
+	estatisticas["multas"] += final
+	prejuizo += final
+
+
 func consumir(p: Dictionary, no: Dictionary) -> void:
 	if no["caido"] > 0.0:
 		estatisticas["enviados_caido"] += 1
 		p["pos"] = centro_no(no["id"])
 		perder(p, "caido", no)
 		return
-	var dados_req: Dictionary = Dados.TIPOS_REQ[p["tipo"]]
-	no["carga"] += dados_req["carga"] * peso
-	if p["tipo"] == "humano":
+	var tipo: String = p["tipo"]
+	if eh_hacker(tipo):
+		atacar_torre(p, no)
+		return
+	var dados_req: Dictionary = Dados.TIPOS_REQ[tipo]
+	no["carga"] += dados_req["carga"] * peso * Dados.ESCALA_PACOTE
+	if tipo == "humano":
 		servir(p, no, false)
 		return
 	p["remover"] = true
-	somar("chegaram", p["tipo"])
-	if p["tipo"] == "credencial":
-		var multa := MULTA_VAZAMENTO * peso
+	somar("chegaram", tipo)
+	if tipo == "credencial":
 		estatisticas["vazamentos"] += 1
-		estatisticas["multas"] += multa
-		prejuizo += multa
-		reputacao_perdida += PERDA_VAZAMENTO
-		adicionar_efeito({"tipo": "vazamento", "pos": centro_no(no["id"]) + Vector2(0, -30), "cor": Color("e879f9"), "duracao": 1.2})
+		multa(MULTA_VAZAMENTO)
+		reputacao_perdida += PERDA_VAZAMENTO * Dados.ESCALA_PACOTE
+		adicionar_efeito({"tipo": "vazamento", "pos": centro_no(no["id"]) + Vector2(0, -30), "cor": Color("e879f9"), "texto": "Conta invadida!", "duracao": 1.2})
 		registrar_ocorrencia("vazamento", no["id"])
-	elif p["tipo"] == "scraper":
-		prejuizo += PREJUIZO_SCRAPER
-		estatisticas["multas"] += PREJUIZO_SCRAPER
+	elif tipo == "scraper":
+		multa(PREJUIZO_SCRAPER)
+
+
+func atacar_torre(p: Dictionary, no: Dictionary) -> void:
+	var tipo: String = p["tipo"]
+	p["remover"] = true
+	var honeypot := efeito_passivo("honeypot")
+	if honeypot > 0.0 and randf() < honeypot:
+		estatisticas["honeypot"] += 1
+		somar("bloqueados", tipo)
+		adicionar_efeito({"tipo": "honeypot", "pos": centro_no(no["id"]) + Vector2(0, -20), "cor": Dados.COMPONENTES["honeypot"]["cor"], "duracao": 0.9})
+		return
+	var defesa := 0.0
+	match tipo:
+		"sqli", "xss":
+			defesa = REDUCAO_CODIGO * codigo_seguro
+		"exploit":
+			defesa = maxf(efeito_passivo("patch"), efeito_passivo("edr") * 0.5)
+		"ransomware":
+			defesa = maxf(efeito_passivo("edr"), efeito_passivo("patch") * 0.4)
+		"forca_bruta":
+			defesa = efeito_passivo("cofre")
+	if randf() < defesa:
+		somar("bloqueados", tipo)
+		adicionar_efeito({"tipo": "bloqueio", "pos": centro_no(no["id"]), "cor": Color("34d399"), "cor_bot": Dados.TIPOS_REQ[tipo]["cor"], "duracao": 0.55})
+		return
+	somar("chegaram", tipo)
+	somar("invasoes", tipo)
+	match tipo:
+		"sqli":
+			estatisticas["vazamentos"] += 1
+			multa(MULTA_SQLI)
+			reputacao_perdida += PERDA_SQLI * Dados.ESCALA_PACOTE
+			adicionar_efeito({"tipo": "vazamento", "pos": centro_no(no["id"]) + Vector2(0, -30), "cor": Dados.TIPOS_REQ["sqli"]["cor"], "texto": "Dados vazados!", "duracao": 1.2})
+			registrar_ocorrencia("sqli", no["id"])
+			eventos.append({"tipo": "incidente", "incidente": "vazamento", "no": no["id"]})
+		"xss":
+			multa(MULTA_XSS)
+			reputacao_perdida += PERDA_XSS * Dados.ESCALA_PACOTE
+			adicionar_efeito({"tipo": "vazamento", "pos": centro_no(no["id"]) + Vector2(0, -30), "cor": Dados.TIPOS_REQ["xss"]["cor"], "texto": "Página pichada!", "duracao": 1.2})
+			registrar_ocorrencia("xss", no["id"])
+		"exploit", "forca_bruta":
+			comprometer(no["id"], "invasao")
+		"ransomware":
+			comprometer(no["id"], "ransomware")
+
+
+func comprometer(id: int, tipo: String) -> void:
+	if not eh_terminal(id):
+		return
+	var no: Dictionary = nos[id]
+	var backup := efeito_passivo("backup")
+	var duracao := TEMPO_SEQUESTRO if tipo == "ransomware" else TEMPO_INVASAO
+	if backup > 0.0:
+		duracao = backup
+	if reforcos.get("plantao", false):
+		duracao *= 0.5
+	no["caido"] = maxf(no["caido"], duracao)
+	no["carga"] = 0.0
+	no["sequestro"] = tipo
+	reputacao_perdida += PERDA_INVASAO
+	estatisticas["quedas"] += 1
+	adicionar_efeito({"tipo": "invasao", "pos": centro_no(id), "cor": Dados.TIPOS_REQ["ransomware" if tipo == "ransomware" else "exploit"]["cor"], "texto": "Torre sequestrada!" if tipo == "ransomware" else "Torre invadida!", "duracao": 1.6})
+	if tipo == "ransomware" and not reforcos.get("seguro", false) and backup <= 0.0:
+		prejuizo += custo_queda * 0.5
+	eventos.append({"tipo": "incidente", "incidente": tipo, "no": id})
+	registrar_ocorrencia(tipo, id)
+
+
+func restaurar(id: int, tempo_restante: float) -> void:
+	if eh_terminal(id):
+		nos[id]["caido"] = minf(nos[id]["caido"], tempo_restante)
 
 
 func capacidade_fila(no: Dictionary) -> int:
@@ -571,7 +719,9 @@ func atualizar_torre(no: Dictionary, dt: float) -> void:
 	texto_dinheiro(no, dt)
 	if no["caido"] > 0.0:
 		no["caido"] = maxf(0.0, no["caido"] - dt)
-		var custo := custo_queda * dt / maxf(1.0, terminais().size())
+		if no["caido"] <= 0.0:
+			no["sequestro"] = ""
+		var custo := custo_queda * dt / maxf(1.0, terminais().size()) * (FATOR_COMPROMETIDA if no["sequestro"] != "" else 1.0)
 		prejuizo += custo
 		no["texto_valor"] -= custo
 		if gerando:
@@ -591,7 +741,7 @@ func atualizar_torre(no: Dictionary, dt: float) -> void:
 		estatisticas["custo_nuvem"] += custo_nuvem
 	if no["carga"] >= CAPACIDADE:
 		no["carga"] = 0.0
-		no["caido"] = TEMPO_QUEDA
+		no["caido"] = TEMPO_QUEDA * (0.5 if reforcos.get("plantao", false) else 1.0)
 		estatisticas["quedas"] += 1
 		adicionar_efeito({"tipo": "queda", "pos": centro_no(no["id"]), "cor": Color("ef4444"), "duracao": 1.4})
 		eventos.append({"tipo": "queda", "no": no["id"]})
@@ -636,3 +786,33 @@ func atualizar_fila(no: Dictionary, dt: float) -> void:
 		p["pos"] = porta_saida(no["id"])
 		pacotes.append(p)
 		encaminhar(p, no)
+
+
+func para_dicionario() -> Dictionary:
+	var lista: Array = []
+	for id in nos:
+		var no: Dictionary = nos[id]
+		lista.append({"id": id, "tipo": no["tipo"], "nivel": no["nivel"], "celula": [no["celula"].x, no["celula"].y], "saidas": no["saidas"].duplicate(), "investido": no["investido"]})
+	return {"nome": nome, "foco": foco, "multiplicador": multiplicador, "proximo_id": proximo_id, "id_internet": id_internet, "nos": lista}
+
+
+static func de_dicionario(dados: Dictionary):
+	var site = load("res://site.gd").new(String(dados.get("nome", "Site")), String(dados.get("foco", "")), float(dados.get("multiplicador", 1.0)))
+	site.nos = {}
+	for item in dados.get("nos", []):
+		var id := int(item["id"])
+		var celula := Vector2i(int(item["celula"][0]), int(item["celula"][1]))
+		site.proximo_id = id
+		site.adicionar_no(String(item["tipo"]), celula)
+		site.nos[id]["nivel"] = int(item["nivel"])
+		site.nos[id]["investido"] = float(item.get("investido", 0.0))
+	for item in dados.get("nos", []):
+		var id2 := int(item["id"])
+		if not site.nos.has(id2):
+			continue
+		for destino in item.get("saidas", []):
+			if site.nos.has(int(destino)):
+				site.nos[id2]["saidas"].append(int(destino))
+	site.proximo_id = int(dados.get("proximo_id", site.nos.size() + 1))
+	site.id_internet = int(dados.get("id_internet", 1))
+	return site
