@@ -1,6 +1,6 @@
 # DDoS Defense
 
-Jogo isométrico de defesa contra ataques DDoS, feito em Godot 4 com GDScript.
+Jogo de estratégia em que você monta a arquitetura que mantém um site no ar durante ataques DDoS. Feito em Godot 4 com GDScript.
 
 **Jogar no navegador:** https://sena295.github.io/ddos-defense/
 
@@ -8,20 +8,34 @@ Jogo isométrico de defesa contra ataques DDoS, feito em Godot 4 com GDScript.
 
 ## Como jogar
 
-Requisições chegam pela esquerda. Humanos (verde) geram créditos e um pouco de carga. Bots (vermelho) geram muita carga. Cloudflare e CAPTCHA filtram parte dos bots (e às vezes barram um humano por engano). Quem passa chega ao Load Balancer, que distribui o tráfego entre os servidores S1, S2 e S3 em round-robin.
+O tráfego sai da Internet, passa pelos 4 slots da esquerda para a direita, chega ao Load Balancer e termina nos servidores. Você decide o que instalar em cada slot e em que ordem.
 
-Se qualquer servidor chegar a 100% de carga, a partida acaba. O tráfego e a proporção de bots crescem sem parar: o objetivo é resistir o máximo de tempo e bater o recorde.
+| Componente | O que faz | Troca |
+|---|---|---|
+| CDN / Cache | Atende parte dos usuários pelo cache, sem passar pelos servidores | Não filtra bots |
+| Firewall WAF | Bloqueia bots e quase nunca barra humanos | Mais caro |
+| CAPTCHA | Bloqueia muitos bots | Barra alguns usuários reais |
+| Rate Limit | Corta o excesso de requisições por IP | Mais fraco, porém barato |
+| Load Balancer | Distribui o tráfego entre os servidores (Round-robin, Menor carga e Health Check) | Sem ele, só o S1 recebe tráfego |
+| Servidores | Até 5, cada um com 3 níveis de processamento | Ficam mais caros a cada compra |
+
+- Usuários atendidos dão créditos. Bots só geram carga.
+- Servidor acima de 100% cai por alguns segundos e quem chegar nele é perdido.
+- Humanos perdidos (barrados por engano ou enviados para servidor caído) derrubam a reputação. Se ela chegar a 0, o site sai do ar.
+- Cada onda traz mais tráfego. Algumas são picos de usuários reais e outras são ataques de botnet.
+- Entre as ondas, o painel de recomendações explica o que deu errado e qual componente ajudaria.
+
+## Controles
 
 | Ação | PC | Celular |
 |---|---|---|
-| Bloquear um bot antes do Load Balancer (+2 créditos) | Clique no cubo vermelho | Toque no cubo vermelho |
-| Upgrade Cloudflare (+5% de bloqueio, até 95%) | Tecla 1 ou botão | Botão |
-| Upgrade CAPTCHA (+6% de bloqueio, até 90%) | Tecla 2 ou botão | Botão |
-| Upgrade Servidores (+2 de processamento por segundo) | Tecla 3 ou botão | Botão |
-| Resfriar (corta pela metade a carga atual) | Tecla 4 ou botão | Botão |
-| Pausar | P, Esc ou botão de pausa | Botão de pausa |
+| Selecionar slot, Load Balancer ou servidor | Clique | Toque |
+| Comprar, melhorar, mover ou remover | Botões do painel | Botões do painel |
+| Iniciar onda | Espaço ou botão | Botão |
+| Pausar | P, Esc ou botão | Botão |
+| Velocidade 1x/2x | F ou botão | Botão |
 
-Clicar em um humano faz você perder o cliente. No celular, jogue com a tela deitada.
+No celular, jogue com a tela deitada.
 
 ## Rodar o projeto
 
