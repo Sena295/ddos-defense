@@ -1,0 +1,75 @@
+name: Publicar jogo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publicar
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache do Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Instalar Godot e templates
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          mkdir -p ~/godot ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip -O godot.zip
+          unzip -q godot.zip -d ~/godot
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz -O templates.tpz
+          unzip -q templates.tpz -d templates_tmp
+          mv templates_tmp/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          rm -rf godot.zip templates.tpz templates_tmp
+
+      - name: Exportar Web e Windows
+        run: |
+          GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          chmod +x $GODOT
+          $GODOT --headless --import
+          mkdir -p build/web build/windows
+          $GODOT --headless --export-release "Web" build/web/index.html
+          $GODOT --headless --export-release "Windows" build/windows/DDoS-Defense.exe
+          test -f build/web/index.wasm
+          test -f build/web/index.pck
+          test -f build/windows/DDoS-Defense.exe
+          touch build/web/.nojekyll
+          cd build/windows && zip -q ../DDoS-Defense-Windows.zip DDoS-Defense.exe
+
+      - name: Publicar no GitHub Pages
+        run: |
+          cd build/web
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Publicar ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+      - name: Publicar versao Windows nas Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete ultima-versao --yes --cleanup-tag || true
+          sleep 3
+          gh release create ultima-versao build/DDoS-Defense-Windows.zip --title "DDoS Defense" --notes "Versao Windows gerada automaticamente a partir do commit ${GITHUB_SHA}. Baixe o zip, extraia e abra DDoS-Defense.exe." --target ${GITHUB_SHA}
