@@ -4,15 +4,16 @@ const Dados := preload("res://dados.gd")
 const Visual := preload("res://visual.gd")
 
 const LINHAS := [
+	{"chave": "corpo", "rotulo": "Corpo", "tipo": "texto", "valores": ["Masculino", "Feminino"]},
 	{"chave": "pele", "rotulo": "Tom de pele", "tipo": "cor", "lista": "pele"},
-	{"chave": "cabelo", "rotulo": "Cabelo", "tipo": "texto", "valores": ["Curto", "Longo", "Moicano", "Cacheado", "Coque", "Careca"]},
+	{"chave": "cabelo", "rotulo": "Cabelo", "tipo": "texto", "valores": ["Curto", "Longo", "Moicano", "Cacheado", "Coque", "Careca", "Social", "Rabo"]},
 	{"chave": "cor_cabelo", "rotulo": "Cor do cabelo", "tipo": "cor", "lista": "cabelo"},
 	{"chave": "roupa", "rotulo": "Roupa", "tipo": "texto", "valores": ["Camiseta", "Camisa", "Regata"]},
 	{"chave": "cor_roupa", "rotulo": "Cor da roupa", "tipo": "cor", "lista": "roupa"},
 	{"chave": "olhos", "rotulo": "Olhar", "tipo": "texto", "valores": ["Normal", "Feliz", "Focado"]},
 ]
 
-var aparencia: Dictionary = {"pele": 1, "cabelo": 0, "cor_cabelo": 0, "roupa": 0, "cor_roupa": 0, "olhos": 0}
+var aparencia: Dictionary = {"corpo": 0, "pele": 1, "cabelo": 0, "cor_cabelo": 0, "roupa": 0, "cor_roupa": 0, "olhos": 0}
 var equipados: Dictionary = {}
 var itens: Array = []
 var origem := Vector2(160, 150)
@@ -32,7 +33,7 @@ func alvos() -> Array:
 	var x0 := origem.x + 330.0
 	for i in LINHAS.size():
 		var linha: Dictionary = LINHAS[i]
-		var y := origem.y + 30.0 + i * 62.0
+		var y := origem.y + 30.0 + i * 56.0
 		if linha["tipo"] == "cor":
 			var paleta := cores(linha["lista"])
 			for k in paleta.size():
@@ -40,8 +41,8 @@ func alvos() -> Array:
 		else:
 			var valores: Array = linha["valores"]
 			for k in valores.size():
-				lista.append({"rect": Rect2(x0 + k * 96, y + 6, 90, 30), "chave": linha["chave"], "valor": k, "texto": valores[k]})
-	var y_itens := origem.y + 30.0 + LINHAS.size() * 62.0
+				lista.append({"rect": Rect2(x0 + k * 92, y + 6, 86, 30), "chave": linha["chave"], "valor": k, "texto": valores[k]})
+	var y_itens := origem.y + 30.0 + LINHAS.size() * 56.0
 	var x := x0
 	for id in itens:
 		if Dados.ITENS[id]["tipo"] == "reforco":
@@ -72,20 +73,20 @@ func desenhar(ci: CanvasItem, tempo: float, mouse: Vector2) -> void:
 	var x0 := origem.x + 330.0
 	for i in LINHAS.size():
 		var linha: Dictionary = LINHAS[i]
-		Visual.texto(ci, Vector2(x0, origem.y + 30.0 + i * 62.0), linha["rotulo"], 13, Visual.TEXTO_SUAVE)
+		Visual.texto(ci, Vector2(x0, origem.y + 30.0 + i * 56.0), linha["rotulo"], 13, Visual.TEXTO_SUAVE)
 	if not itens.is_empty():
-		Visual.texto(ci, Vector2(x0, origem.y + 30.0 + LINHAS.size() * 62.0), "Itens da Loja Tech (toque para vestir)", 13, Visual.TEXTO_SUAVE)
+		Visual.texto(ci, Vector2(x0, origem.y + 30.0 + LINHAS.size() * 56.0), "Itens da Loja Tech (toque para vestir)", 13, Visual.TEXTO_SUAVE)
 	for a in alvos():
 		var r: Rect2 = a["rect"]
 		var hover := r.has_point(mouse)
 		if a.has("cor"):
-			var selecionado: bool = int(aparencia[a["chave"]]) == a["valor"]
+			var selecionado: bool = int(aparencia.get(a["chave"], 0)) == a["valor"]
 			ci.draw_circle(r.get_center(), 13.0, a["cor"], true, -1.0, true)
 			if selecionado:
 				ci.draw_arc(r.get_center(), 17.0, 0.0, TAU, 28, Visual.TEXTO, 2.0, true)
 			elif hover:
 				ci.draw_arc(r.get_center(), 16.0, 0.0, TAU, 28, Visual.BORDA_HOVER, 1.5, true)
 		else:
-			var ativo: bool = (a.has("item") and equipados.get(Dados.ITENS[a["item"]]["tipo"], "") == a["item"]) or (a.has("chave") and int(aparencia[a["chave"]]) == a["valor"])
+			var ativo: bool = (a.has("item") and equipados.get(Dados.ITENS[a["item"]]["tipo"], "") == a["item"]) or (a.has("chave") and int(aparencia.get(a["chave"], 0)) == a["valor"])
 			Visual.caixa(ci, r, Visual.com_alfa(Visual.DESTAQUE, 0.18) if ativo else Visual.CARTAO, 10, Visual.DESTAQUE if ativo else (Visual.BORDA_HOVER if hover else Visual.BORDA), 1)
 			Visual.texto(ci, Vector2(r.position.x, r.position.y + 20), a["texto"], 12, Visual.TEXTO if ativo else Visual.TEXTO_SUAVE, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)

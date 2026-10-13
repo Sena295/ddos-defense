@@ -7,6 +7,9 @@ signal notificacao(texto: String, cor: Color, licao: String)
 signal subiu_nivel(nivel: int)
 
 const ARQUIVO := "user://ddos_defense_save.json"
+const ARQUIVO_V3 := "user://perfil.cfg"
+const BONUS_VETERANO := 150.0
+const BONUS_VETERANO_MAXIMO := 1500.0
 const VERSAO := 4
 const PREFIXO_CODIGO := "DDOS4:"
 const COR_OK := Color("34d399")
@@ -15,6 +18,8 @@ const COR_OURO := Color("fbbf24")
 const RECOMPENSA_SEQUENCIA := 100.0
 const MAX_RECOMPENSA_SEQUENCIA := 700.0
 const XP_LICAO := 15
+const XP_DIA_BASE := 15
+const XP_DIA_EXTRA := 4
 const XP_DESAFIO := 100
 const DINHEIRO_DESAFIO := 250.0
 const DESAFIOS_POR_NIVEL_CODIGO := 3
@@ -34,7 +39,7 @@ func _init() -> void:
 func padrao(nome: String) -> Dictionary:
 	return {
 		"nome": nome, "pin": "", "sal": "", "aceitou": true, "criado": Time.get_date_string_from_system(),
-		"avatar": {"pele": 1, "cabelo": 0, "cor_cabelo": 0, "roupa": 0, "cor_roupa": 0, "olhos": 0},
+		"avatar": {"corpo": 0, "pele": 1, "cabelo": 0, "cor_cabelo": 0, "roupa": 0, "cor_roupa": 0, "olhos": 0},
 		"dinheiro": Dados.DINHEIRO_INICIAL, "xp": 0, "contadores": {},
 		"empresas": {}, "startup": {}, "itens": [], "equipados": {"acessorio": "", "chapeu": "", "roupa": "", "pet": ""},
 		"reforcos": {}, "missoes_resgatadas": [], "licoes": [], "licoes_lidas": [], "desafios": [],
@@ -66,6 +71,7 @@ func normalizar(p: Dictionary) -> Dictionary:
 func carregar() -> void:
 	perfis = {}
 	if not FileAccess.file_exists(ARQUIVO):
+		migrar_v3()
 		return
 	var arquivo := FileAccess.open(ARQUIVO, FileAccess.READ)
 	if arquivo == null:
@@ -75,6 +81,41 @@ func carregar() -> void:
 		return
 	for id in dados["perfis"]:
 		perfis[id] = normalizar(dados["perfis"][id])
+
+
+func migrar_v3() -> void:
+	if not FileAccess.file_exists(ARQUIVO_V3):
+		return
+	var antigo := ConfigFile.new()
+	if antigo.load(ARQUIVO_V3) != OK:
+		return
+	var nome := String(antigo.get_value("perfil", "nome", "")).strip_edges()
+	if nome == "":
+		return
+	var novo := padrao(nome.substr(0, 16))
+	novo["sal"] = "%d-%d" % [randi(), int(Time.get_unix_time_from_system())]
+	novo["avatar"]["cor_roupa"] = int(antigo.get_value("perfil", "cor", 0)) % Dados.CORES_ROUPA.size()
+	var recordes = antigo.get_value("progresso", "recordes", {})
+	var melhor := 0
+	if typeof(recordes) == TYPE_DICTIONARY:
+		for id in recordes:
+			if not Dados.empresa_por_id(String(id)).is_empty():
+				var dia := int(recordes[id])
+				novo["empresas"][String(id)] = {"dono": false, "recorde": dia, "temporadas": 1, "lucro": 0.0}
+				melhor = maxi(melhor, dia)
+	var licoes = antigo.get_value("progresso", "licoes", [])
+	if typeof(licoes) == TYPE_ARRAY:
+		for id in licoes:
+			if Textos.LICOES.has(String(id)) and not String(id) in novo["licoes"]:
+				novo["licoes"].append(String(id))
+	var partidas := int(antigo.get_value("progresso", "partidas", 0))
+	novo["dinheiro"] = Dados.DINHEIRO_INICIAL + minf(BONUS_VETERANO_MAXIMO, BONUS_VETERANO * partidas)
+	novo["contadores"]["maior_dia"] = melhor
+	novo["veterano"] = true
+	var id_novo := "p%d%03d" % [int(Time.get_unix_time_from_system()), randi() % 1000]
+	perfis[id_novo] = novo
+	salvar()
+	DirAccess.rename_absolute(ProjectSettings.globalize_path(ARQUIVO_V3), ProjectSettings.globalize_path(ARQUIVO_V3 + ".migrado"))
 
 
 func salvar() -> void:
@@ -459,7 +500,7 @@ func comprar_empresa(id: String) -> String:
 	estado_empresa(id)["dono"] = true
 	somar("empresas_compradas")
 	registrar_maximo("empresas_proprias", quantidade_empresas())
-	avisar("Agora a %s é sua! Você recebe 35%% do lucro de cada dia" % dados["nome"], COR_OURO)
+	avisar("Agora a %s é sua! Você recebe %d%% do lucro de cada dia" % [dados["nome"], roundi(Dados.PARTICIPACAO["dono"] * 100)], COR_OURO)
 	salvar()
 	return ""
 
@@ -490,7 +531,7 @@ func registrar_dia(id: String, dia: int, lucro: float) -> float:
 	var dividendo := maxf(0.0, lucro) * participacao(id)
 	if dividendo > 0.0:
 		perfil["dinheiro"] = dinheiro() + dividendo
-	ganhar_xp(40 + 10 * dia)
+	ganhar_xp(XP_DIA_BASE + XP_DIA_EXTRA * dia)
 	salvar()
 	return dividendo
 

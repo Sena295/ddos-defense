@@ -45,6 +45,11 @@ func entrar_jogo(novo: bool) -> void:
 	ir_para("mundo")
 	if novo:
 		paineis.abrir("intro", {})
+	elif estado.perfil.get("veterano", false):
+		estado.perfil.erase("veterano")
+		estado.salvar()
+		paineis.abrir("intro", {})
+		avisar("Bem-vindo à versão 4! Seus recordes e lições da versão anterior vieram junto, com bônus de veterano", Visual.CREDITOS)
 	else:
 		avisar("Bem-vindo de volta, %s!" % estado.perfil["nome"], Visual.DESTAQUE)
 

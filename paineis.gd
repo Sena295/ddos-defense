@@ -630,13 +630,13 @@ func desenhar_empresa(id: String) -> void:
 	var status := ""
 	var cor_status := Visual.TEXTO
 	if id == "startup":
-		status = "Sua empresa: 50% do lucro é seu"
+		status = "Sua empresa: %d%% do lucro é seu" % roundi(Dados.PARTICIPACAO["propria"] * 100)
 		cor_status = Visual.CREDITOS
 	elif dono:
-		status = "Você é dono: 35% do lucro é seu"
+		status = "Você é dono: %d%% do lucro é seu" % roundi(Dados.PARTICIPACAO["dono"] * 100)
 		cor_status = Visual.CREDITOS
 	elif e["contrato"]:
-		status = "Contrato disponível: 15% do lucro"
+		status = "Contrato disponível: %d%% do lucro" % roundi(Dados.PARTICIPACAO["contrato"] * 100)
 		cor_status = Visual.HUMANO
 	elif estado().nivel() < int(e["nivel"]):
 		status = "Bloqueada até o nível %s" % Dados.NIVEIS[int(e["nivel"])]["titulo"]
@@ -688,7 +688,7 @@ func comprar_empresa(id: String) -> void:
 
 
 func desenhar_bolsa() -> void:
-	cabecalho("Bolsa Tech", "Compre empresas para receber 35% do lucro de cada dia em vez de 15% do contrato.")
+	cabecalho("Bolsa Tech", "Compre empresas para receber %d%% do lucro de cada dia em vez de %d%% do contrato." % [roundi(Dados.PARTICIPACAO["dono"] * 100), roundi(Dados.PARTICIPACAO["contrato"] * 100)])
 	Visual.texto(self, Vector2(1160, 120), "Carteira: %s" % Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS, HORIZONTAL_ALIGNMENT_RIGHT, 300)
 	for i in Dados.EMPRESAS.size():
 		var e: Dictionary = Dados.EMPRESAS[i]
@@ -820,7 +820,7 @@ func desenhar_startup() -> void:
 	if not estado().perfil.get("startup", {}).is_empty():
 		desenhar_empresa("startup")
 		return
-	cabecalho("Terreno da Startup", "Funde sua própria empresa por %s e fique com 50%% do lucro." % Visual.dinheiro(Dados.CUSTO_STARTUP))
+	cabecalho("Terreno da Startup", "Funde sua própria empresa por %s e fique com %d%% do lucro." % [Visual.dinheiro(Dados.CUSTO_STARTUP), roundi(Dados.PARTICIPACAO["propria"] * 100)])
 	Visual.texto(self, Vector2(500, 142), "Nome da empresa", 13, Visual.TEXTO_SUAVE)
 	Visual.texto(self, Vector2(112, 230), "Setor", 13, Visual.TEXTO_SUAVE)
 	Visual.texto(self, Vector2(112, 320), "Forma do logo", 13, Visual.TEXTO_SUAVE)

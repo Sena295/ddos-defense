@@ -20,7 +20,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 - **Missões principais** em sequência, que ensinam o jogo, e **3 missões diárias** que mudam todo dia.
 - **Sequência de dias jogando**, com bônus crescente na carteira.
 - **7 níveis de carreira**, de Estagiário a Lenda Cyber. Os níveis liberam componentes e empresas.
-- **Economia:** contratos pagam 15% do lucro, empresas compradas pagam 35% e a sua startup paga 50%.
+- **Economia:** contratos pagam 10% do lucro, empresas compradas pagam 20% e a sua startup paga 30%.
 - **Loja Tech:** óculos hacker, headset, boné, gorro, moletom, jaleco, terno, gato e robô de estimação, além de reforços para usar nas operações (seguro cibernético, equipe de plantão, pentest e consultoria).
 - **Startup própria:** escolha nome, setor, forma, cores e símbolo do logo. O prédio aparece na cidade com a sua marca.
 

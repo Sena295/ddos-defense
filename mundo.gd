@@ -75,6 +75,10 @@ var gerador_npc := RandomNumberGenerator.new()
 var predio_hover := ""
 var alvo
 var malha_chao: ArrayMesh
+var malha_minimapa: ArrayMesh
+var camada_rotulos := Node2D.new()
+var camada_hud := Node2D.new()
+var assinatura_rotulos := ""
 var malhas_predios: Dictionary = {}
 var chave_startup := ""
 
@@ -109,6 +113,10 @@ func _ready() -> void:
 			if tipo_tile(x, y) == "calcada" and (x * 3 + y * 7) % 11 == 0 and not perto_de_porta(Vector2i(x, y)):
 				estaticos.append({"tipo": "poste", "caixa": Rect2(x + 0.42, y + 0.42, 0.16, 0.16)})
 	criar_carros()
+	add_child(camada_rotulos)
+	add_child(camada_hud)
+	camada_rotulos.draw.connect(func(): desenhar_rotulos_fixos(camada_rotulos))
+	camada_hud.draw.connect(func(): desenhar_hud(camada_hud))
 	construir_malhas()
 
 
@@ -250,7 +258,9 @@ func criar_npcs() -> void:
 	gerador.seed = 777
 	gerador_npc.seed = 99
 	for i in QUANTIDADE_NPCS:
-		var aparencia := {"pele": gerador.randi() % Dados.CORES_PELE.size(), "cabelo": gerador.randi() % Dados.ESTILOS_CABELO.size(), "cor_cabelo": gerador.randi() % 6, "roupa": gerador.randi() % 3, "cor_roupa": gerador.randi() % Dados.CORES_ROUPA.size(), "olhos": gerador.randi() % 3}
+		var feminino := (i + 1) % 2
+		var cabelos: Array = [1, 3, 4, 7] if feminino == 1 else [0, 2, 3, 5, 6]
+		var aparencia := {"corpo": feminino, "pele": gerador.randi() % Dados.CORES_PELE.size(), "cabelo": cabelos[gerador.randi() % cabelos.size()], "cor_cabelo": gerador.randi() % 6, "roupa": gerador.randi() % 3, "cor_roupa": gerador.randi() % Dados.CORES_ROUPA.size(), "olhos": gerador.randi() % 3}
 		var equipados := {"acessorio": ["", "", "oculos_hacker", "headset"][gerador.randi() % 4], "chapeu": ["", "", "bone", "gorro"][gerador.randi() % 4], "roupa": ["", "", "", "capuz", "jaleco", "terno"][gerador.randi() % 6]}
 		var pos := Vector2.ZERO
 		for tentativa in 50:
@@ -298,6 +308,7 @@ func _process(delta: float) -> void:
 	atualizar_camera(delta)
 	atualizar_proximo()
 	atualizar_hover()
+	atualizar_camadas()
 	if not balao.is_empty():
 		balao["tempo"] -= delta
 		if balao["tempo"] <= 0.0:
@@ -307,6 +318,19 @@ func _process(delta: float) -> void:
 		ultimo_salvo = 0.0
 		guardar_posicao()
 	queue_redraw()
+
+
+func atualizar_camadas() -> void:
+	camada_rotulos.position = -camera.round()
+	var partes := [predio_hover, estado().nivel(), assinatura_startup()]
+	for e in Dados.EMPRESAS:
+		partes.append(estado().eh_dono(e["id"]))
+		partes.append(not estado().obter_operacao(e["id"]).is_empty())
+	var assinatura := str(partes)
+	if assinatura != assinatura_rotulos:
+		assinatura_rotulos = assinatura
+		camada_rotulos.queue_redraw()
+	camada_hud.queue_redraw()
 
 
 func guardar_posicao() -> void:
@@ -570,9 +594,7 @@ func _draw() -> void:
 	draw_set_transform(-camera.round(), 0.0, Vector2.ONE)
 	draw_mesh(malha_chao, null)
 	desenhar_objetos()
-	desenhar_rotulos()
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	desenhar_hud()
 
 
 func visivel_tela(p: Vector2, margem := 80.0) -> bool:
@@ -588,10 +610,21 @@ func construir_malhas() -> void:
 	desenhar_chao()
 	malha_chao = alvo.gerar()
 	for e in estaticos:
-		if e["tipo"] == "arvore":
-			alvo = Malha.new()
-			desenhar_arvore(e)
-			e["malha"] = alvo.gerar()
+		alvo = Malha.new()
+		match e["tipo"]:
+			"arvore":
+				desenhar_arvore(e)
+			"poste":
+				desenhar_poste(e["caixa"].get_center())
+			"banco":
+				desenhar_banco(e["caixa"].position)
+			_:
+				continue
+		e["malha"] = alvo.gerar()
+	for c in carros:
+		alvo = Malha.new()
+		desenhar_carro(c, Vector2.ZERO)
+		c["malha"] = alvo.gerar()
 	alvo = self
 	construir_predios()
 
@@ -604,6 +637,7 @@ func construir_predios() -> void:
 		malhas_predios[l["id"]] = alvo.gerar()
 	alvo = self
 	chave_startup = assinatura_startup()
+	construir_minimapa()
 
 
 func assinatura_startup() -> String:
@@ -719,6 +753,11 @@ func desenhar_objetos() -> void:
 		Visual.elipse(self, c2, Vector2(14, 7) * pulso, Color(1, 1, 1, 0.35))
 		Visual.elipse(self, c2, Vector2(8, 4) * pulso, Color("38bdf8"))
 	for item in lista:
+		desenhar_item(item)
+
+
+func desenhar_item(item: Dictionary) -> void:
+	if true:
 		match item["tipo"]:
 			"predio":
 				var l: Dictionary = item["local"]
@@ -727,20 +766,20 @@ func desenhar_objetos() -> void:
 			"arvore":
 				draw_mesh(item["malha"], null)
 			"poste":
-				desenhar_poste(item["caixa"].get_center())
+				draw_mesh(item["malha"], null)
 			"banco":
-				desenhar_banco(item["caixa"].position)
+				draw_mesh(item["malha"], null)
 			"fonte":
 				desenhar_fonte()
 			"carro":
-				desenhar_carro(item["carro"], item["pos"])
+				draw_mesh(item["carro"]["malha"], null, Transform2D(0.0, iso(item["pos"]) - iso(Vector2.ZERO)))
 			"npc":
 				var n: Dictionary = npcs[item["indice"]]
-				Visual.avatar(self, iso(n["pos"]), 0.9, n["aparencia"], n["equipados"], tempo + item["indice"], n["andando"], n["direcao"])
+				Visual.avatar(self, iso(n["pos"]), 1.05, n["aparencia"], n["equipados"], tempo + item["indice"], n["andando"], n["direcao"])
 			"pet":
 				Visual.pet(self, iso(pet_pos), estado().perfil["equipados"]["pet"], tempo, pet_direcao)
 			"jogador":
-				Visual.avatar(self, iso(jogador), 1.0, estado().perfil.get("avatar", {}), estado().perfil.get("equipados", {}), tempo, andando, direcao)
+				Visual.avatar(self, iso(jogador), 1.15, estado().perfil.get("avatar", {}), estado().perfil.get("equipados", {}), tempo, andando, direcao)
 
 
 func ponto_face_esquerda(a: Rect2i, u: float, v: float) -> Vector2:
@@ -995,12 +1034,12 @@ func desenhar_arvore(item: Dictionary) -> void:
 
 func desenhar_poste(p: Vector2) -> void:
 	var c := iso(p)
-	Visual.elipse(self, c, Vector2(5, 2.5), Color(0, 0, 0, 0.25))
-	draw_line(c, c + Vector2(0, -50), CONTORNO, 4.0)
-	draw_line(c, c + Vector2(0, -50), Color("475569"), 2.0)
-	draw_line(c + Vector2(0, -50), c + Vector2(8, -54), Color("475569"), 2.0)
-	draw_circle(c + Vector2(9, -52), 5.0, CONTORNO)
-	draw_circle(c + Vector2(9, -52), 4.0, Color("fde68a"))
+	elipse_em(c, Vector2(5, 2.5), Color(0, 0, 0, 0.25))
+	alvo.draw_line(c, c + Vector2(0, -50), CONTORNO, 4.0)
+	alvo.draw_line(c, c + Vector2(0, -50), Color("475569"), 2.0)
+	alvo.draw_line(c + Vector2(0, -50), c + Vector2(8, -54), Color("475569"), 2.0)
+	alvo.draw_circle(c + Vector2(9, -52), 5.0, CONTORNO)
+	alvo.draw_circle(c + Vector2(9, -52), 4.0, Color("fde68a"))
 
 
 func desenhar_banco(base: Vector2) -> void:
@@ -1028,15 +1067,15 @@ func desenhar_carro(c: Dictionary, p: Vector2) -> void:
 	var tamanho := Vector2(1.0, 0.5) if horizontal else Vector2(0.5, 1.0)
 	var base := p - tamanho / 2
 	var cor: Color = c["cor"]
-	Visual.elipse(self, iso(p) + Vector2(4, 2), Vector2(26, 12), Color(0, 0, 0, 0.22))
+	elipse_em(iso(p) + Vector2(4, 2), Vector2(26, 12), Color(0, 0, 0, 0.22))
 	caixa_iso(base, tamanho.x, tamanho.y, 12.0, cor)
 	var cabine := Vector2(0.55, 0.42) if horizontal else Vector2(0.42, 0.55)
 	caixa_iso(p - cabine / 2, cabine.x, cabine.y, 22.0, Color("bae6fd"))
 	var teto := p - cabine / 2
-	draw_colored_polygon(PackedVector2Array([iso(teto) + Vector2(0, -22), iso(teto + Vector2(cabine.x, 0)) + Vector2(0, -22), iso(teto + cabine) + Vector2(0, -22), iso(teto + Vector2(0, cabine.y)) + Vector2(0, -22)]), cor.lightened(0.1))
+	alvo.draw_colored_polygon(PackedVector2Array([iso(teto) + Vector2(0, -22), iso(teto + Vector2(cabine.x, 0)) + Vector2(0, -22), iso(teto + cabine) + Vector2(0, -22), iso(teto + Vector2(0, cabine.y)) + Vector2(0, -22)]), cor.lightened(0.1))
 
 
-func desenhar_rotulos() -> void:
+func desenhar_rotulos_fixos(ci: CanvasItem) -> void:
 	for l in LOCAIS:
 		var a: Rect2i = l["area"]
 		var h: float = l["altura"]
@@ -1045,23 +1084,21 @@ func desenhar_rotulos() -> void:
 		var ancora := iso(centro_area(a)) + Vector2(0, -h - 22)
 		if l["tipo"] == "missoes":
 			ancora.y -= 40
-		if not visivel_tela(ancora, 160.0):
-			continue
 		var nome := nome_local(l)
 		var largura := Visual.largura_texto(nome, 13) + 42
 		var r := Rect2(ancora - Vector2(largura / 2, 13), Vector2(largura, 26))
 		var hover: bool = predio_hover == l["id"]
-		Visual.caixa(self, r, Color(0.06, 0.09, 0.15, 0.92 if hover else 0.8), 13, cor_local(l) if hover else Color(1, 1, 1, 0.12), 1)
+		Visual.caixa(ci, r, Color(0.06, 0.09, 0.15, 0.92 if hover else 0.8), 13, cor_local(l) if hover else Color(1, 1, 1, 0.12), 1)
 		var logo_c := r.position + Vector2(14, 13)
 		if l["tipo"] == "empresa":
 			var e: Dictionary = Dados.empresa_por_id(l["id"])
-			Visual.logo(self, logo_c, 9.0, e["logo"], e["sigla"])
+			Visual.logo(ci, logo_c, 9.0, e["logo"], e["sigla"])
 		elif l["tipo"] == "startup":
 			var s: Dictionary = estado().empresa_dados("startup")
-			Visual.logo(self, logo_c, 9.0, s["logo"], s["sigla"])
+			Visual.logo(ci, logo_c, 9.0, s["logo"], s["sigla"])
 		else:
-			draw_circle(logo_c, 6.0, cor_local(l), true, -1.0, true)
-		Visual.texto(self, r.position + Vector2(28, 18), nome, 13, Visual.TEXTO)
+			ci.draw_circle(logo_c, 6.0, cor_local(l), true, -1.0, true)
+		Visual.texto(ci, r.position + Vector2(28, 18), nome, 13, Visual.TEXTO)
 		if l["tipo"] == "empresa":
 			var e2: Dictionary = Dados.empresa_por_id(l["id"])
 			var est: Dictionary = estado().perfil.get("empresas", {}).get(l["id"], {})
@@ -1078,77 +1115,83 @@ func desenhar_rotulos() -> void:
 				cor_selo = Color("94a3b8")
 			var ls := Visual.largura_texto(selo, 10) + 12
 			var rs := Rect2(ancora.x - ls / 2, r.end.y + 3, ls, 16)
-			Visual.caixa(self, rs, cor_selo, 8)
-			Visual.texto(self, Vector2(rs.position.x, rs.position.y + 12), selo, 10, Color("0b1220"), HORIZONTAL_ALIGNMENT_CENTER, ls)
+			Visual.caixa(ci, rs, cor_selo, 8)
+			Visual.texto(ci, Vector2(rs.position.x, rs.position.y + 12), selo, 10, Color("0b1220"), HORIZONTAL_ALIGNMENT_CENTER, ls)
 			if estado().obter_operacao(l["id"]).size() > 0:
-				draw_circle(Vector2(r.end.x - 2, r.position.y + 2), 5.0, Visual.HUMANO, true, -1.0, true)
+				ci.draw_circle(Vector2(r.end.x - 2, r.position.y + 2), 5.0, Visual.HUMANO, true, -1.0, true)
+
+
+func desenhar_rotulos(ci: CanvasItem) -> void:
 	for l in LOCAIS:
 		if l["tipo"] == "missoes" and estado().quantidade_prontas() > 0:
 			var a2: Rect2i = l["area"]
 			var p := iso(centro_area(a2)) + Vector2(42, -l["altura"] - 70 + sin(tempo * 4.0) * 5.0)
-			draw_circle(p, 13.0, CONTORNO, true, -1.0, true)
-			draw_circle(p, 12.0, Visual.PERIGO, true, -1.0, true)
-			Visual.texto(self, p + Vector2(-12, 6), str(estado().quantidade_prontas()), 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 24)
+			ci.draw_circle(p, 13.0, CONTORNO, true, -1.0, true)
+			ci.draw_circle(p, 12.0, Visual.PERIGO, true, -1.0, true)
+			Visual.texto(ci, p + Vector2(-12, 6), str(estado().quantidade_prontas()), 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 24)
 	var pj := iso(jogador)
 	var nome_j: String = estado().perfil.get("nome", "")
 	var lj := Visual.largura_texto(nome_j, 12) + 16
-	Visual.caixa(self, Rect2(pj.x - lj / 2, pj.y - 92, lj, 20), Color(0, 0, 0, 0.55), 10)
-	Visual.texto(self, Vector2(pj.x - lj / 2, pj.y - 77), nome_j, 12, Visual.TEXTO, HORIZONTAL_ALIGNMENT_CENTER, lj)
+	Visual.caixa(ci, Rect2(pj.x - lj / 2, pj.y - 92, lj, 20), Color(0, 0, 0, 0.55), 10)
+	Visual.texto(ci, Vector2(pj.x - lj / 2, pj.y - 77), nome_j, 12, Visual.TEXTO, HORIZONTAL_ALIGNMENT_CENTER, lj)
 	if not balao.is_empty() and balao["indice"] < npcs.size():
 		var n2: Dictionary = npcs[balao["indice"]]
 		var pn := iso(n2["pos"])
 		var linhas := Visual.quebrar(balao["texto"], 13, 260)
 		var altura := 24 + linhas.size() * 18
 		var caixa_balao := Rect2(pn + Vector2(-140, -82 - altura), Vector2(280, altura))
-		Visual.caixa(self, caixa_balao.grow(2), CONTORNO, 12)
-		Visual.caixa(self, caixa_balao, Color("f8fafc"), 11)
-		draw_colored_polygon(PackedVector2Array([Vector2(pn.x - 8, caixa_balao.end.y), Vector2(pn.x + 8, caixa_balao.end.y), Vector2(pn.x, pn.y - 70)]), Color("f8fafc"))
-		Visual.texto(self, caixa_balao.position + Vector2(12, 18), n2["nome"], 11, Color("2563eb"))
+		Visual.caixa(ci, caixa_balao.grow(2), CONTORNO, 12)
+		Visual.caixa(ci, caixa_balao, Color("f8fafc"), 11)
+		ci.draw_colored_polygon(PackedVector2Array([Vector2(pn.x - 8, caixa_balao.end.y), Vector2(pn.x + 8, caixa_balao.end.y), Vector2(pn.x, pn.y - 70)]), Color("f8fafc"))
+		Visual.texto(ci, caixa_balao.position + Vector2(12, 18), n2["nome"], 11, Color("2563eb"))
 		for k in linhas.size():
-			Visual.texto(self, caixa_balao.position + Vector2(12, 36 + k * 18), linhas[k], 13, Color("0f172a"))
+			Visual.texto(ci, caixa_balao.position + Vector2(12, 36 + k * 18), linhas[k], 13, Color("0f172a"))
 
 
-func desenhar_hud() -> void:
+func desenhar_hud(ci: CanvasItem) -> void:
+	ci.draw_set_transform(-camera.round(), 0.0, Vector2.ONE)
+	desenhar_rotulos(ci)
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var p: Dictionary = estado().perfil
 	var cartao := Rect2(16, 16, 380, 92)
-	Visual.caixa(self, cartao, Visual.com_alfa(Visual.CARTAO, 0.94), 16, Visual.BORDA, 1, 10)
-	Visual.caixa(self, Rect2(28, 26, 70, 72), Color("3b6fb6"), 12)
-	Visual.caixa(self, Rect2(28, 74, 70, 24), Color("5c9e3c"), 0)
-	Visual.avatar(self, Vector2(63, 96), 1.05, p.get("avatar", {}), p.get("equipados", {}), tempo, false)
-	draw_rect(Rect2(28, 98, 70, 12), Visual.com_alfa(Visual.CARTAO, 0.94))
-	Visual.texto(self, Vector2(110, 44), p.get("nome", ""), 17, Visual.TEXTO)
-	Visual.texto(self, Vector2(110, 64), "%s  ·  nível %d" % [estado().titulo(), estado().nivel() + 1], 12, Visual.DESTAQUE)
+	Visual.caixa(ci, cartao, Visual.com_alfa(Visual.CARTAO, 0.94), 16, Visual.BORDA, 1, 10)
+	Visual.caixa(ci, Rect2(28, 26, 70, 72), Color("3b6fb6"), 12)
+	Visual.caixa(ci, Rect2(28, 74, 70, 24), Color("5c9e3c"), 0)
+	Visual.avatar(ci, Vector2(63, 96), 1.05, p.get("avatar", {}), p.get("equipados", {}), tempo, false)
+	ci.draw_rect(Rect2(28, 98, 70, 12), Visual.com_alfa(Visual.CARTAO, 0.94))
+	Visual.texto(ci, Vector2(110, 44), p.get("nome", ""), 17, Visual.TEXTO)
+	Visual.texto(ci, Vector2(110, 64), "%s  ·  nível %d" % [estado().titulo(), estado().nivel() + 1], 12, Visual.DESTAQUE)
 	var barra := Rect2(110, 74, 270, 7)
-	Visual.caixa(self, barra, Visual.LINHA, 4)
-	Visual.caixa(self, Rect2(barra.position, Vector2(maxf(7.0, barra.size.x * estado().progresso_nivel()), 7)), Visual.DESTAQUE, 4)
-	Visual.texto(self, Vector2(110, 98), Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS)
+	Visual.caixa(ci, barra, Visual.LINHA, 4)
+	Visual.caixa(ci, Rect2(barra.position, Vector2(maxf(7.0, barra.size.x * estado().progresso_nivel()), 7)), Visual.DESTAQUE, 4)
+	Visual.texto(ci, Vector2(110, 98), Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS)
 	var seq: Dictionary = p.get("sequencia", {})
 	var chama := Vector2(300, 92)
-	draw_colored_polygon(PackedVector2Array([chama + Vector2(0, -12), chama + Vector2(6, -2), chama + Vector2(4, 5), chama + Vector2(-4, 5), chama + Vector2(-6, -2)]), Color("f97316"))
-	draw_circle(chama + Vector2(0, 1), 3.0, Color("fde047"), true, -1.0, true)
-	Visual.texto(self, Vector2(312, 98), "%d dia(s)" % int(seq.get("dias", 0)), 12, Visual.TEXTO_SUAVE)
-	desenhar_minimapa()
-	desenhar_missao_atual()
+	ci.draw_colored_polygon(PackedVector2Array([chama + Vector2(0, -12), chama + Vector2(6, -2), chama + Vector2(4, 5), chama + Vector2(-4, 5), chama + Vector2(-6, -2)]), Color("f97316"))
+	ci.draw_circle(chama + Vector2(0, 1), 3.0, Color("fde047"), true, -1.0, true)
+	Visual.texto(ci, Vector2(312, 98), "%d dia(s)" % int(seq.get("dias", 0)), 12, Visual.TEXTO_SUAVE)
+	desenhar_minimapa(ci)
+	desenhar_missao_atual(ci)
 	var prontas: int = estado().quantidade_prontas()
-	Visual.caixa(self, RET_BOTAO_MISSOES, Visual.com_alfa(Visual.CARTAO, 0.94), 16, Visual.CREDITOS if prontas > 0 else (Visual.BORDA_HOVER if RET_BOTAO_MISSOES.has_point(mouse) else Visual.BORDA), 2 if prontas > 0 else 1, 10)
-	draw_circle(RET_BOTAO_MISSOES.position + Vector2(30, 36), 16.0, Visual.CREDITOS, true, -1.0, true)
-	Visual.texto(self, RET_BOTAO_MISSOES.position + Vector2(14, 44), "!", 20, Visual.FUNDO, HORIZONTAL_ALIGNMENT_CENTER, 32)
-	Visual.texto(self, RET_BOTAO_MISSOES.position + Vector2(56, 32), "Missões", 16, Visual.TEXTO)
-	Visual.texto(self, RET_BOTAO_MISSOES.position + Vector2(56, 52), "%d para resgatar" % prontas if prontas > 0 else "tecla M", 12, Visual.CREDITOS if prontas > 0 else Visual.TEXTO_SUAVE)
-	Visual.caixa(self, RET_BOTAO_SEDE, Visual.com_alfa(Visual.CARTAO, 0.94), 16, Visual.BORDA_HOVER if RET_BOTAO_SEDE.has_point(mouse) else Visual.BORDA, 1, 10)
-	Visual.icone(self, "servidor", RET_BOTAO_SEDE.position + Vector2(30, 36), Visual.DESTAQUE, 1.3)
-	Visual.texto(self, RET_BOTAO_SEDE.position + Vector2(56, 32), "Perfil", 16, Visual.TEXTO)
-	Visual.texto(self, RET_BOTAO_SEDE.position + Vector2(56, 52), "visual, backup, conta", 12, Visual.TEXTO_SUAVE)
+	Visual.caixa(ci, RET_BOTAO_MISSOES, Visual.com_alfa(Visual.CARTAO, 0.94), 16, Visual.CREDITOS if prontas > 0 else (Visual.BORDA_HOVER if RET_BOTAO_MISSOES.has_point(mouse) else Visual.BORDA), 2 if prontas > 0 else 1, 10)
+	ci.draw_circle(RET_BOTAO_MISSOES.position + Vector2(30, 36), 16.0, Visual.CREDITOS, true, -1.0, true)
+	Visual.texto(ci, RET_BOTAO_MISSOES.position + Vector2(14, 44), "!", 20, Visual.FUNDO, HORIZONTAL_ALIGNMENT_CENTER, 32)
+	Visual.texto(ci, RET_BOTAO_MISSOES.position + Vector2(56, 32), "Missões", 16, Visual.TEXTO)
+	Visual.texto(ci, RET_BOTAO_MISSOES.position + Vector2(56, 52), "%d para resgatar" % prontas if prontas > 0 else "tecla M", 12, Visual.CREDITOS if prontas > 0 else Visual.TEXTO_SUAVE)
+	Visual.caixa(ci, RET_BOTAO_SEDE, Visual.com_alfa(Visual.CARTAO, 0.94), 16, Visual.BORDA_HOVER if RET_BOTAO_SEDE.has_point(mouse) else Visual.BORDA, 1, 10)
+	Visual.icone(ci, "servidor", RET_BOTAO_SEDE.position + Vector2(30, 36), Visual.DESTAQUE, 1.3)
+	Visual.texto(ci, RET_BOTAO_SEDE.position + Vector2(56, 32), "Perfil", 16, Visual.TEXTO)
+	Visual.texto(ci, RET_BOTAO_SEDE.position + Vector2(56, 52), "visual, backup, conta", 12, Visual.TEXTO_SUAVE)
 	var prompt := texto_prompt()
 	if prompt != "":
 		var pulso := 0.85 + 0.15 * sin(tempo * 6.0)
-		Visual.caixa(self, RET_PROMPT, Visual.com_alfa(Visual.PRINCIPAL, pulso), 16, Visual.TRANSPARENTE, 0, 10)
-		Visual.caixa(self, Rect2(RET_PROMPT.position + Vector2(12, 12), Vector2(30, 30)), Color("052e1f"), 8)
-		Visual.texto(self, RET_PROMPT.position + Vector2(12, 33), "E", 15, Visual.PRINCIPAL, HORIZONTAL_ALIGNMENT_CENTER, 30)
-		Visual.texto(self, RET_PROMPT.position + Vector2(54, 34), prompt, 16, Color("052e1f"), HORIZONTAL_ALIGNMENT_LEFT, RET_PROMPT.size.x - 64)
+		Visual.caixa(ci, RET_PROMPT, Visual.com_alfa(Visual.PRINCIPAL, pulso), 16, Visual.TRANSPARENTE, 0, 10)
+		Visual.caixa(ci, Rect2(RET_PROMPT.position + Vector2(12, 12), Vector2(30, 30)), Color("052e1f"), 8)
+		Visual.texto(ci, RET_PROMPT.position + Vector2(12, 33), "E", 15, Visual.PRINCIPAL, HORIZONTAL_ALIGNMENT_CENTER, 30)
+		Visual.texto(ci, RET_PROMPT.position + Vector2(54, 34), prompt, 16, Color("052e1f"), HORIZONTAL_ALIGNMENT_LEFT, RET_PROMPT.size.x - 64)
 	else:
-		Visual.caixa(self, Rect2(16, 686, 640, 26), Color(0, 0, 0, 0.45), 13)
-		Visual.texto(self, Vector2(30, 704), "WASD ou setas para andar  ·  clique no chão ou num prédio para ir até lá  ·  E para entrar", 12, Visual.TEXTO)
+		Visual.caixa(ci, Rect2(16, 686, 640, 26), Color(0, 0, 0, 0.45), 13)
+		Visual.texto(ci, Vector2(30, 704), "WASD ou setas para andar  ·  clique no chão ou num prédio para ir até lá  ·  E para entrar", 12, Visual.TEXTO)
 
 
 func deslocamento_minimapa() -> Vector2:
@@ -1159,39 +1202,50 @@ func escala_minimapa() -> float:
 	return minf(RET_MINIMAPA.size.x / TAMANHO_TELA.x, RET_MINIMAPA.size.y / TAMANHO_TELA.y)
 
 
-func desenhar_minimapa() -> void:
-	var r := RET_MINIMAPA
-	var k := escala_minimapa()
-	Visual.caixa(self, r.grow(6), Visual.com_alfa(Visual.CARTAO, 0.94), 12, Visual.BORDA, 1, 8)
-	var desloc := deslocamento_minimapa()
-	var ponto_mini := func(p: Vector2) -> Vector2: return desloc + iso(p) * k
-	draw_colored_polygon(PackedVector2Array([ponto_mini.call(Vector2(0, 0)), ponto_mini.call(Vector2(LARGURA, 0)), ponto_mini.call(Vector2(LARGURA, ALTURA)), ponto_mini.call(Vector2(0, ALTURA))]), Color("5fae3c"))
+func ponto_mini(p: Vector2) -> Vector2:
+	return deslocamento_minimapa() + iso(p) * escala_minimapa()
+
+
+func quad_mini(a: Vector2, b: Vector2) -> PackedVector2Array:
+	return PackedVector2Array([ponto_mini(a), ponto_mini(Vector2(b.x, a.y)), ponto_mini(b), ponto_mini(Vector2(a.x, b.y))])
+
+
+func construir_minimapa() -> void:
+	alvo = Malha.new()
+	alvo.draw_colored_polygon(quad_mini(Vector2.ZERO, Vector2(LARGURA, ALTURA)), Color("5fae3c"))
 	for x in [13, 29]:
-		draw_colored_polygon(PackedVector2Array([ponto_mini.call(Vector2(x, 0)), ponto_mini.call(Vector2(x + 2, 0)), ponto_mini.call(Vector2(x + 2, ALTURA)), ponto_mini.call(Vector2(x, ALTURA))]), Color("4a5061"))
-	draw_colored_polygon(PackedVector2Array([ponto_mini.call(Vector2(0, 13)), ponto_mini.call(Vector2(LARGURA, 13)), ponto_mini.call(Vector2(LARGURA, 15)), ponto_mini.call(Vector2(0, 15))]), Color("4a5061"))
+		alvo.draw_colored_polygon(quad_mini(Vector2(x, 0), Vector2(x + 2, ALTURA)), Color("4a5061"))
+	alvo.draw_colored_polygon(quad_mini(Vector2(0, 13), Vector2(LARGURA, 15)), Color("4a5061"))
 	for l in LOCAIS:
 		var a: Rect2i = l["area"]
-		draw_colored_polygon(PackedVector2Array([ponto_mini.call(Vector2(a.position)), ponto_mini.call(Vector2(a.end.x, a.position.y)), ponto_mini.call(Vector2(a.end)), ponto_mini.call(Vector2(a.position.x, a.end.y))]), cor_local(l))
-	draw_rect(Rect2(desloc + camera * k, Vector2(1280, 720) * k), Color(1, 1, 1, 0.6), false, 1.0)
-	var pj: Vector2 = ponto_mini.call(jogador)
-	draw_circle(pj, 4.0, CONTORNO, true, -1.0, true)
-	draw_circle(pj, 3.0, Color.WHITE, true, -1.0, true)
+		alvo.draw_colored_polygon(quad_mini(Vector2(a.position), Vector2(a.end)), cor_local(l))
+	malha_minimapa = alvo.gerar()
+	alvo = self
 
 
-func desenhar_missao_atual() -> void:
+func desenhar_minimapa(ci: CanvasItem) -> void:
+	Visual.caixa(ci, RET_MINIMAPA.grow(6), Visual.com_alfa(Visual.CARTAO, 0.94), 12, Visual.BORDA, 1, 8)
+	ci.draw_mesh(malha_minimapa, null)
+	ci.draw_rect(Rect2(deslocamento_minimapa() + camera * escala_minimapa(), Vector2(1280, 720) * escala_minimapa()), Color(1, 1, 1, 0.6), false, 1.0)
+	var pj := ponto_mini(jogador)
+	ci.draw_circle(pj, 4.0, CONTORNO)
+	ci.draw_circle(pj, 3.0, Color.WHITE)
+
+
+func desenhar_missao_atual(ci: CanvasItem) -> void:
 	var ativas: Array = estado().missoes_ativas()
 	if ativas.is_empty():
 		return
 	var m: Dictionary = ativas[0]
 	var r := Rect2(16, 118, 380, 66)
-	Visual.caixa(self, r, Visual.com_alfa(Visual.CARTAO, 0.9), 14, Visual.BORDA, 1, 8)
-	Visual.texto(self, r.position + Vector2(14, 22), "MISSÃO", 10, Visual.CREDITOS)
-	Visual.texto(self, r.position + Vector2(66, 22), m["titulo"], 13, Visual.TEXTO)
-	Visual.paragrafo(self, r.position + Vector2(14, 42), m["descricao"], 11, Visual.TEXTO_SUAVE, 300, 1.3, 2)
+	Visual.caixa(ci, r, Visual.com_alfa(Visual.CARTAO, 0.9), 14, Visual.BORDA, 1, 8)
+	Visual.texto(ci, r.position + Vector2(14, 22), "MISSÃO", 10, Visual.CREDITOS)
+	Visual.texto(ci, r.position + Vector2(66, 22), m["titulo"], 13, Visual.TEXTO)
+	Visual.paragrafo(ci, r.position + Vector2(14, 42), m["descricao"], 11, Visual.TEXTO_SUAVE, 300, 1.3, 2)
 	var progresso := clampf(float(estado().valor(m["contador"])) / float(m["alvo"]), 0.0, 1.0)
-	Visual.texto(self, Vector2(r.end.x - 60, r.position.y + 22), "%d/%d" % [mini(estado().valor(m["contador"]), int(m["alvo"])), int(m["alvo"])], 11, Visual.TEXTO_SUAVE, HORIZONTAL_ALIGNMENT_RIGHT, 48)
-	Visual.caixa(self, Rect2(r.position.x + 14, r.end.y - 8, r.size.x - 28, 3), Visual.LINHA, 2)
-	Visual.caixa(self, Rect2(r.position.x + 14, r.end.y - 8, (r.size.x - 28) * progresso, 3), Visual.CREDITOS, 2)
+	Visual.texto(ci, Vector2(r.end.x - 60, r.position.y + 22), "%d/%d" % [mini(estado().valor(m["contador"]), int(m["alvo"])), int(m["alvo"])], 11, Visual.TEXTO_SUAVE, HORIZONTAL_ALIGNMENT_RIGHT, 48)
+	Visual.caixa(ci, Rect2(r.position.x + 14, r.end.y - 8, r.size.x - 28, 3), Visual.LINHA, 2)
+	Visual.caixa(ci, Rect2(r.position.x + 14, r.end.y - 8, (r.size.x - 28) * progresso, 3), Visual.CREDITOS, 2)
 
 
 class Malha:

@@ -200,7 +200,9 @@ func nova_conta() -> void:
 	aceitou = false
 	campo_nome.text = ""
 	campo_pin.text = ""
-	editor.aparencia = {"pele": randi() % Dados.CORES_PELE.size(), "cabelo": randi() % Dados.ESTILOS_CABELO.size(), "cor_cabelo": randi() % 5, "roupa": randi() % 3, "cor_roupa": randi() % Dados.CORES_ROUPA.size(), "olhos": 0}
+	var feminino := randi() % 2
+	var cabelos: Array = [1, 3, 4, 7] if feminino == 1 else [0, 2, 3, 6]
+	editor.aparencia = {"corpo": feminino, "pele": randi() % Dados.CORES_PELE.size(), "cabelo": cabelos[randi() % cabelos.size()], "cor_cabelo": randi() % 5, "roupa": randi() % 3, "cor_roupa": randi() % Dados.CORES_ROUPA.size(), "olhos": 0}
 	tela = Tela.CADASTRO
 
 
@@ -288,8 +290,8 @@ func desenhar_carregando() -> void:
 			draw_rect(Rect2(x - 4, 552, 8, 8), Visual.BOT if bot else Visual.HUMANO)
 	Visual.caixa(self, Rect2(620, 532, 40, 48), Visual.CARTAO, 10, Visual.DESTAQUE, 1)
 	Visual.icone(self, "waf", Vector2(640, 556), Visual.DESTAQUE, 0.9)
-	Visual.avatar(self, Vector2(250, 600), 1.4, {"pele": 2, "cabelo": 2, "cor_cabelo": 6, "roupa": 0, "cor_roupa": 5, "olhos": 2}, {"roupa": "capuz", "acessorio": "headset"}, tempo, false)
-	Visual.avatar(self, Vector2(1030, 600), 1.4, {"pele": 0, "cabelo": 4, "cor_cabelo": 3, "roupa": 1, "cor_roupa": 0, "olhos": 1}, {"acessorio": "oculos_hacker"}, tempo + 1.0, false)
+	Visual.avatar(self, Vector2(250, 600), 1.4, {"corpo": 0, "pele": 2, "cabelo": 2, "cor_cabelo": 6, "roupa": 0, "cor_roupa": 5, "olhos": 2}, {"roupa": "capuz", "acessorio": "headset"}, tempo, false)
+	Visual.avatar(self, Vector2(1030, 600), 1.4, {"corpo": 1, "pele": 0, "cabelo": 7, "cor_cabelo": 3, "roupa": 1, "cor_roupa": 0, "olhos": 1}, {"acessorio": "oculos_hacker"}, tempo + 1.0, false)
 	if tempo_carregando > 0.3:
 		Visual.texto(self, Vector2(0, 690), "Toque para pular", 13, Visual.TEXTO_SUAVE, HORIZONTAL_ALIGNMENT_CENTER, 1280)
 

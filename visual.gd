@@ -18,36 +18,84 @@ const PRINCIPAL := Color("10b981")
 const SOMBRA := Color(0, 0, 0, 0.35)
 const SOBREPOSICAO := Color(0.02, 0.03, 0.06, 0.82)
 const TRANSPARENTE := Color(0, 0, 0, 0)
+const MAX_CACHE_TEXTO := 4000
 
-static var estilo := StyleBoxFlat.new()
 
 
 static func fonte() -> Font:
 	return ThemeDB.fallback_font
 
 
+static var cache_estilos: Dictionary = {}
+
+
 static func caixa(ci: CanvasItem, r: Rect2, fundo: Color, raio := 12, borda := TRANSPARENTE, largura := 0, sombra := 0, detalhe := 8) -> void:
-	estilo.bg_color = fundo
-	estilo.set_corner_radius_all(raio)
-	estilo.corner_detail = detalhe
-	estilo.border_color = borda
-	estilo.set_border_width_all(largura)
-	estilo.shadow_size = sombra
-	estilo.shadow_color = SOMBRA
-	estilo.shadow_offset = Vector2(0, sombra * 0.4)
-	estilo.anti_aliasing = true
+	var chave := "%s|%d|%s|%d|%d|%d" % [fundo.to_html(), raio, borda.to_html(), largura, sombra, detalhe]
+	var estilo: StyleBoxFlat = cache_estilos.get(chave)
+	if estilo == null:
+		if cache_estilos.size() > MAX_CACHE_TEXTO:
+			cache_estilos.clear()
+		estilo = StyleBoxFlat.new()
+		estilo.bg_color = fundo
+		estilo.set_corner_radius_all(raio)
+		estilo.corner_detail = detalhe
+		estilo.border_color = borda
+		estilo.set_border_width_all(largura)
+		estilo.shadow_size = sombra
+		estilo.shadow_color = SOMBRA
+		estilo.shadow_offset = Vector2(0, sombra * 0.4)
+		estilo.anti_aliasing = true
+		cache_estilos[chave] = estilo
 	ci.draw_style_box(estilo, r)
 
 
+static var cache_linhas: Dictionary = {}
+static var cache_larguras: Dictionary = {}
+
+
 static func texto(ci: CanvasItem, pos: Vector2, conteudo: String, tamanho: int, cor: Color, alinhamento := HORIZONTAL_ALIGNMENT_LEFT, largura := -1.0) -> void:
-	ci.draw_string(fonte(), pos, conteudo, alinhamento, largura, tamanho, cor)
+	if conteudo == "":
+		return
+	var chave := "%d|%d|%d|%s" % [tamanho, alinhamento, roundi(largura), conteudo]
+	var linha: TextLine = cache_linhas.get(chave)
+	if linha == null:
+		if cache_linhas.size() > MAX_CACHE_TEXTO:
+			cache_linhas.clear()
+		linha = TextLine.new()
+		linha.add_string(conteudo, fonte(), tamanho)
+		if largura > 0.0:
+			linha.width = largura
+			linha.alignment = alinhamento
+		cache_linhas[chave] = linha
+	linha.draw(ci.get_canvas_item(), pos - Vector2(0, linha.get_line_ascent()), cor)
 
 
 static func largura_texto(conteudo: String, tamanho: int) -> float:
-	return fonte().get_string_size(conteudo, HORIZONTAL_ALIGNMENT_LEFT, -1, tamanho).x
+	var chave := "%d|%s" % [tamanho, conteudo]
+	if cache_larguras.has(chave):
+		return cache_larguras[chave]
+	if cache_larguras.size() > MAX_CACHE_TEXTO:
+		cache_larguras.clear()
+	var valor := fonte().get_string_size(conteudo, HORIZONTAL_ALIGNMENT_LEFT, -1, tamanho).x
+	cache_larguras[chave] = valor
+	return valor
+
+
+static var cache_quebras: Dictionary = {}
 
 
 static func quebrar(conteudo: String, tamanho: int, largura: float) -> PackedStringArray:
+	var chave := "%d|%d|%s" % [tamanho, roundi(largura), conteudo]
+	if cache_quebras.has(chave):
+		return cache_quebras[chave]
+	if cache_quebras.size() > MAX_CACHE_TEXTO:
+		cache_quebras.clear()
+	var resultado := quebrar_sem_cache(conteudo, tamanho, largura)
+	cache_quebras[chave] = resultado
+	return resultado
+
+
+static func quebrar_sem_cache(conteudo: String, tamanho: int, largura: float) -> PackedStringArray:
 	var linhas := PackedStringArray()
 	var atual := ""
 	for palavra in conteudo.split(" "):
@@ -420,10 +468,11 @@ static func simbolo(ci: CanvasItem, tipo: String, c: Vector2, cor: Color, s := 1
 
 
 const CONTORNO := Color("161b29")
+const LINHA_PERSONAGEM := Color("1c2131")
 
 
 static func pintar_partes(ci: CanvasItem, pe: Vector2, u: float, partes: Array, direcao: int) -> void:
-	var espessura := maxf(1.0, roundf(u * 0.55))
+	var espessura := maxf(1.0, roundf(u * 0.6))
 	var retangulos: Array = []
 	for p in partes:
 		var x: float = p[0]
@@ -433,159 +482,273 @@ static func pintar_partes(ci: CanvasItem, pe: Vector2, u: float, partes: Array, 
 		retangulos.append(Rect2((pe + Vector2(x, p[1]) * u).round(), (Vector2(w, p[3]) * u).round()))
 	for i in partes.size():
 		if partes[i][5]:
-			ci.draw_rect(retangulos[i].grow(espessura), CONTORNO)
+			var cor: Color = partes[i][4]
+			ci.draw_rect(retangulos[i].grow(espessura), cor.darkened(0.62).lerp(CONTORNO, 0.35))
 	for i in partes.size():
 		ci.draw_rect(retangulos[i], partes[i][4])
 
 
+static func circulo_c(ci: CanvasItem, c: Vector2, r: float, cor: Color, o: float) -> void:
+	ci.draw_circle(c, r + o, LINHA_PERSONAGEM, true, -1.0, true)
+	ci.draw_circle(c, r, cor, true, -1.0, true)
+
+
+static func elipse_c(ci: CanvasItem, c: Vector2, raio: Vector2, cor: Color, o: float) -> void:
+	elipse(ci, c, raio + Vector2(o, o), LINHA_PERSONAGEM)
+	elipse(ci, c, raio, cor)
+
+
+static func capsula_c(ci: CanvasItem, a: Vector2, b: Vector2, r: float, cor: Color, o: float) -> void:
+	ci.draw_line(a, b, LINHA_PERSONAGEM, (r + o) * 2.0, true)
+	ci.draw_circle(a, r + o, LINHA_PERSONAGEM, true, -1.0, true)
+	ci.draw_circle(b, r + o, LINHA_PERSONAGEM, true, -1.0, true)
+	ci.draw_line(a, b, cor, r * 2.0, true)
+	ci.draw_circle(a, r, cor, true, -1.0, true)
+	ci.draw_circle(b, r, cor, true, -1.0, true)
+
+
+static func poligono_c(ci: CanvasItem, pontos: PackedVector2Array, cor: Color, o: float) -> void:
+	ci.draw_colored_polygon(pontos, cor)
+	var fechado := pontos.duplicate()
+	fechado.append(pontos[0])
+	ci.draw_polyline(fechado, LINHA_PERSONAGEM, o * 1.6, true)
+
+
+static func arco_pontos(c: Vector2, raio: Vector2, de: float, ate: float, passos := 14) -> PackedVector2Array:
+	var pontos := PackedVector2Array()
+	for k in passos + 1:
+		var a := deg_to_rad(lerpf(de, ate, float(k) / passos))
+		pontos.append(c + Vector2(cos(a) * raio.x, sin(a) * raio.y))
+	return pontos
+
+
 static func avatar(ci: CanvasItem, pe: Vector2, escala: float, aparencia: Dictionary, equipados: Dictionary, tempo := 0.0, andando := false, direcao := 1) -> void:
 	const Dados := preload("res://dados.gd")
-	var u := 1.8 * escala
+	var s := escala * 0.98
+	var d := 1.0 if direcao >= 0 else -1.0
+	var P := func(x, y): return pe + Vector2(float(x) * d, float(y)) * s
+	var R := func(x, y, w, h): return Rect2(pe + Vector2((float(x) if d > 0 else -float(x) - float(w)), float(y)) * s, Vector2(float(w), float(h)) * s)
+	var o := maxf(1.0, 1.15 * s)
 	var pele: Color = Dados.CORES_PELE[clampi(int(aparencia.get("pele", 0)), 0, Dados.CORES_PELE.size() - 1)]
 	var cor_cabelo: Color = Dados.CORES_CABELO[clampi(int(aparencia.get("cor_cabelo", 0)), 0, Dados.CORES_CABELO.size() - 1)]
 	var cor_roupa: Color = Dados.CORES_ROUPA[clampi(int(aparencia.get("cor_roupa", 0)), 0, Dados.CORES_ROUPA.size() - 1)]
-	var cabelo := clampi(int(aparencia.get("cabelo", 0)), 0, 5)
+	var cabelo := clampi(int(aparencia.get("cabelo", 0)), 0, Dados.ESTILOS_CABELO.size() - 1)
 	var estilo_roupa := clampi(int(aparencia.get("roupa", 0)), 0, 2)
 	var olhar := clampi(int(aparencia.get("olhos", 0)), 0, 2)
+	var feminino := int(aparencia.get("corpo", 0)) == 1
 	var vestimenta: String = equipados.get("roupa", "")
 	var chapeu: String = equipados.get("chapeu", "")
 	var acessorio: String = equipados.get("acessorio", "")
-	var fase := sin(tempo * 11.0) if andando else 0.0
-	var b := roundf(absf(fase)) if andando else 0.0
-	var passo := roundf(fase * 1.4)
-	var braco := roundf(fase)
-	var piscar := fmod(tempo + pe.x * 0.01, 3.7) < 0.12
-	var pele_sombra := pele.darkened(0.2)
-	var calca := Color("2b3550")
+	var fase := sin(tempo * 10.0) if andando else 0.0
+	var b := absf(fase) * 1.5 if andando else sin(tempo * 2.4) * 0.35
+	var balanco := fase * 3.5
+	var piscar := fmod(tempo + pe.x * 0.013, 3.9) < 0.12
+	var pele_sombra := pele.darkened(0.14)
+	var branco := Color("f8fafc")
+	var calca := Color("3a4766")
+	var sapato := Color("262b3a")
 	var tronco := cor_roupa
 	var manga := cor_roupa
 	if vestimenta == "terno":
-		tronco = Color("1f2937")
+		tronco = Color("273142")
 		manga = tronco
-		calca = Color("1f2937")
+		calca = Color("273142")
+		sapato = Color("15171c")
 	elif vestimenta == "jaleco":
 		tronco = Color("f1f5f9")
 		manga = tronco
-		calca = Color("475569")
+		calca = Color("4b5563")
 	var braco_nu: bool = estilo_roupa == 2 and vestimenta == ""
-	var tronco_sombra := tronco.darkened(0.22)
-	var sapato := Color("1e1b2e")
-	elipse(ci, pe, Vector2(7.5, 2.4) * u, Color(0, 0, 0, 0.28))
-	var partes: Array = []
+	var meia_largura := 8.5 if feminino else 10.0
+	var raio_perna := 3.1 if feminino else 3.7
+	var raio_braco := 2.6 if feminino else 3.1
+	var x_perna := 3.6 if feminino else 4.4
+	var centro_cabeca := Vector2(0, -47 - b)
+	var raio_cabeca := 13.5
+	elipse(ci, pe, Vector2(12, 3.4) * s, Color(0, 0, 0, 0.22))
+	var cab := cor_cabelo
+	var cab_escuro := cor_cabelo.darkened(0.18)
+	var c0: Vector2 = P.call(centro_cabeca.x, centro_cabeca.y)
 	if vestimenta == "capuz":
-		partes.append([-6, -25 - b, 3, 8, tronco_sombra, true])
-	if cabelo == 1:
-		partes.append([-6, -26 - b, 4, 9, cor_cabelo.darkened(0.15), true])
-	partes.append([-3 - passo, -8, 3, 6, calca.darkened(0.18), true])
-	partes.append([-3 - passo, -2, 4, 2, sapato, true])
-	partes.append([-6, -16 - b + braco, 2, 7, pele_sombra if braco_nu else tronco_sombra, true])
-	partes.append([-6, -9 - b + braco, 2, 2, pele_sombra, true])
-	partes.append([passo, -8, 3, 6, calca, true])
-	partes.append([passo, -2, 4, 2, sapato, true])
-	var altura_tronco := 13 if vestimenta == "jaleco" else 10
-	partes.append([-4, -17 - b, 8, altura_tronco, tronco, true])
-	partes.append([-4, -17 - b, 2, altura_tronco, tronco_sombra, false])
-	if vestimenta == "":
-		match estilo_roupa:
-			1:
-				partes.append([-1, -17 - b, 3, 1, Color("f8fafc"), false])
-				partes.append([1, -15 - b, 1, 1, tronco.lightened(0.4), false])
-				partes.append([1, -12 - b, 1, 1, tronco.lightened(0.4), false])
-			2:
-				partes.append([-3, -17 - b, 1, 2, pele, false])
-				partes.append([2, -17 - b, 1, 2, pele, false])
-			_:
-				partes.append([-1, -17 - b, 3, 1, pele_sombra, false])
-	elif vestimenta == "capuz":
-		partes.append([-1, -11 - b, 4, 2, tronco_sombra, false])
-		partes.append([1, -16 - b, 1, 3, Color("f8fafc"), false])
-	elif vestimenta == "terno":
-		partes.append([0, -17 - b, 2, 4, Color("f8fafc"), false])
-		partes.append([0, -16 - b, 1, 4, Color("dc2626"), false])
-	elif vestimenta == "jaleco":
-		partes.append([0, -17 - b, 2, 6, cor_roupa, false])
-		partes.append([2, -10 - b, 2, 1, Color("94a3b8"), false])
-	partes.append([-1, -18 - b, 2, 1, pele_sombra, false])
-	partes.append([-4, -28 - b, 8, 10, pele, true])
-	partes.append([-5, -27 - b, 10, 8, pele, true])
-	partes.append([5, -24 - b, 1, 2, pele, true])
-	partes.append([-4, -24 - b, 2, 2, pele_sombra, false])
-	var cor_olho := Color("1b1f2c")
-	var boca := pele.darkened(0.45)
-	var altura_olho := 1 if piscar else 2
-	match olhar:
-		1:
-			partes.append([1, -24 - b, 1, 1, cor_olho, false])
-			partes.append([3, -24 - b, 1, 1, cor_olho, false])
-			partes.append([1, -22 - b, 1, 1, boca, false])
-			partes.append([2, -21 - b, 2, 1, boca, false])
-			partes.append([3, -22 - b, 2, 1, Color(1, 0.45, 0.45, 0.55), false])
-		2:
-			partes.append([1, -26 - b, 2, 1, cor_cabelo.darkened(0.2), false])
-			partes.append([3, -26 - b, 2, 1, cor_cabelo.darkened(0.2), false])
-			partes.append([1, -24 - b, 1, altura_olho, cor_olho, false])
-			partes.append([3, -24 - b, 1, altura_olho, cor_olho, false])
-			partes.append([2, -21 - b, 2, 1, boca, false])
-		_:
-			partes.append([1, -24 - b, 1, altura_olho, cor_olho, false])
-			partes.append([3, -24 - b, 1, altura_olho, cor_olho, false])
-			partes.append([2, -21 - b, 2, 1, boca, false])
-	var brilho := cor_cabelo.lightened(0.28)
+		caixa(ci, R.call(-12, -57 - b, 8, 24), tronco.darkened(0.2), int(5 * s), LINHA_PERSONAGEM, int(o))
 	match cabelo:
-		0:
-			partes.append([-5, -29 - b, 10, 3, cor_cabelo, true])
-			partes.append([-5, -26 - b, 3, 3, cor_cabelo, true])
-			partes.append([2, -26 - b, 3, 1, cor_cabelo, false])
-			partes.append([-1, -29 - b, 3, 1, brilho, false])
 		1:
-			partes.append([-5, -29 - b, 10, 3, cor_cabelo, true])
-			partes.append([-5, -26 - b, 3, 5, cor_cabelo, false])
-			partes.append([3, -26 - b, 2, 2, cor_cabelo, false])
-			partes.append([-1, -29 - b, 3, 1, brilho, false])
-		2:
-			partes.append([-2, -32 - b, 4, 4, cor_cabelo, true])
-			partes.append([-5, -28 - b, 3, 3, cor_cabelo.darkened(0.35), false])
-			partes.append([-1, -32 - b, 1, 2, brilho, false])
+			var cabelo_atras: Rect2 = R.call(-15.5, -56 - b, 15, 30)
+			caixa(ci, cabelo_atras, cab_escuro, int(6 * s), LINHA_PERSONAGEM, int(o))
 		3:
-			partes.append([-6, -31 - b, 12, 4, cor_cabelo, true])
-			partes.append([-7, -28 - b, 4, 6, cor_cabelo, true])
-			partes.append([-4, -32 - b, 3, 1, cor_cabelo, true])
-			partes.append([1, -32 - b, 3, 1, cor_cabelo, true])
-			partes.append([4, -27 - b, 2, 1, cor_cabelo, false])
-			partes.append([-2, -31 - b, 3, 1, brilho, false])
+			circulo_c(ci, P.call(-2, -51 - b), 17.0 * s, cab, o)
+			for k in 7:
+				var ang := deg_to_rad(150.0 + k * 40.0)
+				circulo_c(ci, P.call(-2 + cos(ang) * 16.0, -51 - b + sin(ang) * 15.0), 5.0 * s, cab, o)
 		4:
-			partes.append([-5, -33 - b, 4, 4, cor_cabelo, true])
-			partes.append([-5, -29 - b, 10, 3, cor_cabelo, true])
-			partes.append([-5, -26 - b, 3, 3, cor_cabelo, true])
-			partes.append([2, -26 - b, 2, 1, cor_cabelo, false])
-			partes.append([0, -29 - b, 3, 1, brilho, false])
+			circulo_c(ci, P.call(-3, -63 - b), 6.0 * s, cab, o)
+		7:
+			capsula_c(ci, P.call(-14, -52 - b), P.call(-17, -33 - b + balanco * 0.3), 4.0 * s, cab_escuro, o)
+	capsula_c(ci, P.call(-meia_largura + 0.5, -31 - b), P.call(-meia_largura - 1.5 - balanco * 0.6, -19 - b), raio_braco * s, pele_sombra if braco_nu else manga.darkened(0.14), o)
+	circulo_c(ci, P.call(-meia_largura - 1.5 - balanco * 0.6, -17.5 - b), 3.0 * s, pele_sombra, o)
+	var pe_tras: Vector2 = P.call(-x_perna - balanco, -4)
+	capsula_c(ci, P.call(-x_perna, -16), pe_tras, raio_perna * s, calca.darkened(0.12), o)
+	elipse_c(ci, pe_tras + Vector2(1.5 * d, 1.5) * s, Vector2(4.8, 2.8) * s, sapato, o)
+	var pe_frente: Vector2 = P.call(x_perna + balanco, -4)
+	capsula_c(ci, P.call(x_perna, -16), pe_frente, raio_perna * s, calca, o)
+	elipse_c(ci, pe_frente + Vector2(1.5 * d, 1.5) * s, Vector2(4.8, 2.8) * s, sapato, o)
+	ci.draw_line(pe_frente + Vector2(-2.5, 3.6) * s, pe_frente + Vector2(5.5 * d, 3.6) * s if d > 0 else pe_frente + Vector2(-5.5, 3.6) * s, branco, 1.0 * s)
+	var comprimento := 27.0 if vestimenta == "jaleco" else 21.0
+	var tronco_rect: Rect2 = R.call(-meia_largura, -35 - b, meia_largura * 2, comprimento)
+	caixa(ci, tronco_rect, tronco, int(7 * s), LINHA_PERSONAGEM, int(o))
+	var sombra_tronco: Rect2 = R.call(meia_largura * 0.3, -33 - b, meia_largura * 0.6, comprimento - 4)
+	caixa(ci, sombra_tronco, Color(0, 0, 0, 0.1), int(4 * s))
+	if feminino and vestimenta == "":
+		caixa(ci, R.call(-meia_largura - 1, -20 - b, meia_largura * 2 + 2, 6), tronco.darkened(0.08), int(3 * s), LINHA_PERSONAGEM, int(o))
+	elif vestimenta == "":
+		ci.draw_line(P.call(-meia_largura + 1, -16.5 - b), P.call(meia_largura - 1, -16.5 - b), calca.darkened(0.35), 1.6 * s)
+	match vestimenta:
+		"terno":
+			ci.draw_colored_polygon(PackedVector2Array([P.call(-4, -35 - b), P.call(4, -35 - b), P.call(0, -24 - b)]), branco)
+			ci.draw_colored_polygon(PackedVector2Array([P.call(-1, -32 - b), P.call(1, -32 - b), P.call(1.4, -23 - b), P.call(0, -21 - b), P.call(-1.4, -23 - b)]), Color("dc2626"))
+			ci.draw_line(P.call(-4, -35 - b), P.call(0, -24 - b), LINHA_PERSONAGEM, o)
+			ci.draw_line(P.call(4, -35 - b), P.call(0, -24 - b), LINHA_PERSONAGEM, o)
+		"jaleco":
+			ci.draw_colored_polygon(PackedVector2Array([P.call(-3.5, -35 - b), P.call(3.5, -35 - b), P.call(0, -26 - b)]), cor_roupa)
+			ci.draw_line(P.call(-3.5, -35 - b), P.call(0, -26 - b), Color("94a3b8"), 1.4 * s)
+			ci.draw_line(P.call(3.5, -35 - b), P.call(0, -26 - b), Color("94a3b8"), 1.4 * s)
+			ci.draw_line(P.call(0, -26 - b), P.call(0, -10 - b), Color("cbd5e1"), 1.2 * s)
+			ci.draw_line(P.call(5, -30 - b), P.call(5, -27 - b), Color("2563eb"), 1.4 * s)
+		"capuz":
+			caixa(ci, R.call(-5, -24 - b, 10, 5), tronco.darkened(0.15), int(2 * s))
+			ci.draw_line(P.call(-2, -34 - b), P.call(-2, -29 - b), branco, 1.2 * s)
+			ci.draw_line(P.call(2, -34 - b), P.call(2, -29 - b), branco, 1.2 * s)
 		_:
-			partes.append([0, -28 - b, 2, 1, pele.lightened(0.3), false])
+			match estilo_roupa:
+				1:
+					ci.draw_colored_polygon(PackedVector2Array([P.call(-4.5, -35 - b), P.call(0, -32 - b), P.call(-2, -30 - b)]), branco)
+					ci.draw_colored_polygon(PackedVector2Array([P.call(4.5, -35 - b), P.call(0, -32 - b), P.call(2, -30 - b)]), branco)
+					for k in 3:
+						ci.draw_circle(P.call(0, -29 + k * 4 - b), 0.8 * s, tronco.lightened(0.5), true, -1.0, true)
+				2:
+					ci.draw_colored_polygon(arco_pontos(P.call(0, -35 - b), Vector2(5, 4) * s, 0, 180, 10), pele)
+				_:
+					ci.draw_colored_polygon(arco_pontos(P.call(0, -35 - b), Vector2(3.5, 2.5) * s, 0, 180, 10), pele_sombra)
+	caixa(ci, R.call(-2.5, -39 - b, 5, 5), pele_sombra, int(1 * s))
+	circulo_c(ci, P.call(-11.5, -46 - b), 3.2 * s, pele, o)
+	ci.draw_circle(P.call(-11.5, -46 - b), 1.4 * s, pele_sombra, true, -1.0, true)
+	elipse_c(ci, c0, Vector2(raio_cabeca, raio_cabeca - 0.5) * s, pele, o)
+	elipse(ci, P.call(5.5, -44 - b), Vector2(7, 9) * s, Color(0, 0, 0, 0.04))
+	var olho_e: Vector2 = P.call(-2.5, -47 - b)
+	var olho_d: Vector2 = P.call(5.5, -47 - b)
+	var escuro := Color("2a2018")
+	if olhar == 1:
+		for olho in [olho_e, olho_d]:
+			ci.draw_polyline(PackedVector2Array([olho + Vector2(-2.2, 0.8) * s, olho + Vector2(0, -1.2) * s, olho + Vector2(2.2, 0.8) * s]), escuro, 1.5 * s, true)
+	elif piscar:
+		for olho in [olho_e, olho_d]:
+			ci.draw_line(olho + Vector2(-2, 0.5) * s, olho + Vector2(2, 0.5) * s, escuro, 1.4 * s, true)
+	else:
+		for olho in [olho_e, olho_d]:
+			elipse(ci, olho, Vector2(2.1, 2.9) * s, escuro)
+			ci.draw_circle(olho + Vector2(0.7 * d, -1.1) * s, 0.9 * s, branco, true, -1.0, true)
+	if feminino and olhar != 1:
+		for olho in [olho_e, olho_d]:
+			ci.draw_line(olho + Vector2(1.6 * d, -2.2) * s, olho + Vector2(3.2 * d, -3.4) * s, escuro, 1.1 * s, true)
+	var sobrancelha := cab_escuro if cabelo != 5 else pele.darkened(0.45)
+	var y_sobr := -52.0 if olhar != 2 else -51.0
+	var incl := 0.0 if olhar != 2 else 1.0
+	ci.draw_line(P.call(-5, y_sobr - b - incl * 0.0), P.call(-0.5, y_sobr - b + incl), sobrancelha, 1.6 * s, true)
+	ci.draw_line(P.call(3.5, y_sobr - b + incl), P.call(8, y_sobr - b - incl * 0.0), sobrancelha, 1.6 * s, true)
+	ci.draw_line(P.call(2, -44.5 - b), P.call(2.8, -43 - b), pele.darkened(0.25), 1.2 * s, true)
+	elipse(ci, P.call(-5.5, -42.5 - b), Vector2(2.4, 1.4) * s, Color(1, 0.45, 0.5, 0.35 if feminino else 0.18))
+	elipse(ci, P.call(8.5, -42.5 - b), Vector2(2.0, 1.3) * s, Color(1, 0.45, 0.5, 0.35 if feminino else 0.18))
+	var boca := Color("b4485e") if feminino else pele.darkened(0.48)
+	if olhar == 1:
+		ci.draw_colored_polygon(arco_pontos(P.call(2, -40.5 - b), Vector2(3, 2.6) * s, 0, 180, 10), Color("8f2d3f"))
+	elif olhar == 2:
+		ci.draw_line(P.call(0.5, -40 - b), P.call(4, -40 - b), boca, 1.3 * s, true)
+	else:
+		ci.draw_polyline(PackedVector2Array([P.call(-0.5, -40.5 - b), P.call(2, -39.3 - b), P.call(4.5, -40.5 - b)]), boca, 1.4 * s, true)
+	desenhar_cabelo_frente(ci, P, s, o, cabelo, cab, cab_escuro, b, c0, raio_cabeca, d)
 	match chapeu:
 		"bone":
-			partes.append([-5, -31 - b, 10, 4, Color("2563eb"), true])
-			partes.append([4, -28 - b, 4, 1, Color("1d4ed8"), true])
-			partes.append([-1, -31 - b, 3, 1, Color("60a5fa"), false])
+			poligono_c(ci, arco_pontos(P.call(0, -51 - b), Vector2(14.2, 11) * s, 180, 360, 16), Color("2563eb"), o)
+			poligono_c(ci, PackedVector2Array([P.call(9, -52 - b), P.call(20, -51 - b), P.call(19, -48.5 - b), P.call(9, -49 - b)]), Color("1d4ed8"), o)
+			ci.draw_circle(P.call(0, -61 - b), 1.4 * s, Color("93c5fd"), true, -1.0, true)
 		"gorro":
-			partes.append([-1, -34 - b, 2, 2, Color("f8fafc"), true])
-			partes.append([-5, -32 - b, 10, 4, Color("dc2626"), true])
-			partes.append([-5, -28 - b, 10, 1, Color("f8fafc"), true])
+			poligono_c(ci, arco_pontos(P.call(0, -52 - b), Vector2(14.5, 12) * s, 180, 360, 16), Color("dc2626"), o)
+			caixa(ci, R.call(-14.5, -55 - b, 29, 5), branco, int(2 * s), LINHA_PERSONAGEM, int(o))
+			circulo_c(ci, P.call(0, -65 - b), 3.4 * s, branco, o)
 	match acessorio:
 		"oculos_hacker":
-			partes.append([0, -25 - b, 5, 2, Color("0f172a"), false])
-			partes.append([-2, -25 - b, 2, 1, Color("0f172a"), false])
-			partes.append([3, -25 - b, 1, 1, Color("22c55e"), false])
-			partes.append([1, -25 - b, 1, 1, Color("22c55e"), false])
+			for olho in [olho_e, olho_d]:
+				var lente := Rect2(olho - Vector2(3.2, 2.6) * s, Vector2(6.4, 5.2) * s)
+				caixa(ci, lente, Color("0f172a"), int(2 * s), Color("0f172a"), 1)
+				ci.draw_line(lente.position + Vector2(1.2, 1.2) * s, lente.position + Vector2(3, 1.2) * s, Color("22c55e"), 1.0 * s)
+			ci.draw_line(olho_e + Vector2(3.2 * d, -0.5) * s, olho_d + Vector2(-3.2 * d, -0.5) * s, Color("0f172a"), 1.4 * s)
+			ci.draw_line(olho_e + Vector2(-3.2 * d, -0.5) * s, P.call(-11, -47 - b), Color("0f172a"), 1.2 * s)
 		"headset":
-			partes.append([-4, -30 - b, 8, 1, Color("111827"), true])
-			partes.append([-3, -25 - b, 2, 3, Color("111827"), true])
-			partes.append([-1, -21 - b, 4, 1, Color("111827"), false])
-			partes.append([3, -21 - b, 1, 1, Color("ef4444"), false])
-	partes.append([4, -16 - b - braco, 2, 7, pele if braco_nu else manga, true])
+			ci.draw_polyline(arco_pontos(c0, Vector2(15, 15) * s, 195, 345, 14), Color("111827"), 2.2 * s, true)
+			circulo_c(ci, P.call(-12.5, -46 - b), 4.0 * s, Color("1f2937"), o)
+			ci.draw_line(P.call(-12, -43 - b), P.call(0, -39 - b), Color("111827"), 1.4 * s, true)
+			ci.draw_circle(P.call(0.5, -39 - b), 1.4 * s, Color("ef4444"), true, -1.0, true)
+	capsula_c(ci, P.call(meia_largura - 0.5, -31 - b), P.call(meia_largura + 1.5 + balanco * 0.6, -19 - b), raio_braco * s, pele if braco_nu else manga, o)
 	if vestimenta == "" and estilo_roupa == 0:
-		partes.append([4, -13 - b - braco, 2, 4, pele, false])
-	partes.append([4, -9 - b - braco, 2, 2, pele, true])
-	pintar_partes(ci, pe, u, partes, direcao)
+		capsula_c(ci, P.call(meia_largura + 0.3 + balanco * 0.3, -25.5 - b), P.call(meia_largura + 1.5 + balanco * 0.6, -19 - b), (raio_braco - 0.2) * s, pele, 0.0)
+	circulo_c(ci, P.call(meia_largura + 1.5 + balanco * 0.6, -17.5 - b), 3.0 * s, pele, o)
+
+
+static func desenhar_cabelo_frente(ci: CanvasItem, P: Callable, s: float, o: float, cabelo: int, cab: Color, cab_escuro: Color, b: float, c0: Vector2, raio: float, d: float) -> void:
+	var brilho := Color(cab.lightened(0.22), 0.65)
+	match cabelo:
+		0:
+			var pontos := arco_pontos(P.call(0, -47 - b), Vector2(raio + 1.2, raio + 1.2) * s, 160 if d > 0 else 20, 380 if d > 0 else -200, 18)
+			pontos.append(P.call(9, -52 - b))
+			pontos.append(P.call(4, -54 - b))
+			pontos.append(P.call(-1, -52 - b))
+			pontos.append(P.call(-6, -53 - b))
+			pontos.append(P.call(-10, -48 - b))
+			poligono_c(ci, pontos, cab, o)
+			ci.draw_polyline(arco_pontos(P.call(-1, -50 - b), Vector2(8, 7) * s, 230 if d > 0 else -50, 290 if d > 0 else -110, 6), brilho, 1.1 * s, true)
+		1:
+			var pontos2 := arco_pontos(P.call(0, -47 - b), Vector2(raio + 1.5, raio + 1.5) * s, 150 if d > 0 else 30, 390 if d > 0 else -210, 18)
+			pontos2.append(P.call(13, -40 - b))
+			pontos2.append(P.call(10, -53 - b))
+			pontos2.append(P.call(2, -55 - b))
+			pontos2.append(P.call(-7, -52 - b))
+			pontos2.append(P.call(-11, -38 - b))
+			poligono_c(ci, pontos2, cab, o)
+			ci.draw_polyline(arco_pontos(P.call(-1, -50 - b), Vector2(8, 7) * s, 230 if d > 0 else -50, 290 if d > 0 else -110, 6), brilho, 1.1 * s, true)
+		2:
+			poligono_c(ci, PackedVector2Array([P.call(-6, -58 - b), P.call(-2, -67 - b), P.call(2, -62 - b), P.call(5, -68 - b), P.call(7, -59 - b), P.call(4, -55 - b), P.call(-3, -55 - b)]), cab, o)
+			ci.draw_polyline(arco_pontos(c0, Vector2(raio - 0.5, raio - 0.5) * s, 200 if d > 0 else -20, 250 if d > 0 else -70, 6), cab_escuro, 2.5 * s, true)
+		3:
+			var pontos3 := arco_pontos(P.call(-1, -50 - b), Vector2(raio + 2.5, raio + 1) * s, 175 if d > 0 else 5, 365 if d > 0 else -185, 16)
+			pontos3.append(P.call(8, -51 - b))
+			pontos3.append(P.call(-9, -50 - b))
+			poligono_c(ci, pontos3, cab, o)
+			for ponto in [[-6, -57], [0, -60], [6, -57], [-10, -53], [2, -55]]:
+				ci.draw_arc(P.call(ponto[0], ponto[1] - b), 2.0 * s, PI, TAU, 6, brilho, 1.0 * s, true)
+		4, 7:
+			var pontos4 := arco_pontos(P.call(0, -47 - b), Vector2(raio + 1, raio + 1) * s, 165 if d > 0 else 15, 375 if d > 0 else -195, 18)
+			pontos4.append(P.call(8, -51 - b))
+			pontos4.append(P.call(2, -54 - b))
+			pontos4.append(P.call(-5, -52 - b))
+			pontos4.append(P.call(-11, -46 - b))
+			poligono_c(ci, pontos4, cab, o)
+			ci.draw_polyline(arco_pontos(P.call(-1, -50 - b), Vector2(8, 7) * s, 230 if d > 0 else -50, 290 if d > 0 else -110, 6), brilho, 1.1 * s, true)
+			if cabelo == 7:
+				ci.draw_circle(P.call(-13, -51 - b), 2.0 * s, Color("ec4899"), true, -1.0, true)
+			else:
+				var laco: Vector2 = P.call(-2, -57.5 - b)
+				caixa(ci, Rect2(laco - Vector2(3, 1) * s, Vector2(6, 2) * s), Color("ec4899"), int(1 * s))
+		5:
+			ci.draw_polyline(arco_pontos(P.call(-2, -52 - b), Vector2(5, 4) * s, 200 if d > 0 else -20, 260 if d > 0 else -80, 5), Color(1, 1, 1, 0.45), 1.6 * s, true)
+		6:
+			var pontos6 := arco_pontos(P.call(0, -47 - b), Vector2(raio + 1.3, raio + 1.6) * s, 165 if d > 0 else 15, 375 if d > 0 else -195, 18)
+			pontos6.append(P.call(12, -50 - b))
+			pontos6.append(P.call(4, -55 - b))
+			pontos6.append(P.call(-4, -56 - b))
+			pontos6.append(P.call(-11, -47 - b))
+			poligono_c(ci, pontos6, cab, o)
+			ci.draw_line(P.call(-4, -61 - b), P.call(-2, -56 - b), cab_escuro, 1.3 * s, true)
+			ci.draw_polyline(arco_pontos(P.call(2, -51 - b), Vector2(7, 6) * s, 235 if d > 0 else -55, 300 if d > 0 else -120, 6), brilho, 1.1 * s, true)
 
 
 static func semicirculo(c: Vector2, r: float, de: float, ate: float) -> PackedVector2Array:

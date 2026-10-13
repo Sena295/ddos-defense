@@ -1,3 +1,11 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
 config_version=5
 
 [application]
@@ -5,18 +13,16 @@ config_version=5
 config/name="DDoS Defense"
 config/description="Defenda seus servidores de um ataque DDoS."
 run/main_scene="res://main.tscn"
-config/icon="res://icon.svg"
 config/features=PackedStringArray("4.7")
 boot_splash/bg_color=Color(0.043, 0.059, 0.102, 1)
 boot_splash/show_image=false
+config/icon="res://icon.svg"
 
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
-window/stretch/aspect="keep"
-window/handheld/orientation=0
 
 [rendering]
 
