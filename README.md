@@ -46,7 +46,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 | Instalar componente | Clique na paleta e depois numa célula | Toque na paleta e depois numa célula |
 | Conectar | Arraste do círculo de saída até outro componente | Arraste, ou botão Conectar |
 | Mover a câmera da operação | Arraste o fundo, roda do mouse dá zoom | Arraste o fundo |
-| Iniciar o dia / Pausar / Velocidade | Espaço / P / F | Botões |
+| Iniciar o dia / Pausar / Velocidade | Espaço / P / F
 
 ## Privacidade
 
