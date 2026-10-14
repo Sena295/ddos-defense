@@ -121,6 +121,12 @@ const LICOES := {
 	"segredos": {"titulo": "Segredos fora do código", "categoria": "Conceito",
 		"texto": "Senhas, tokens e chaves de API nunca devem ficar escritos no código-fonte, porque o código é copiado, compartilhado e às vezes publicado por engano. O certo é guardar em variáveis de ambiente ou num cofre de segredos e trocar (rotacionar) as chaves regularmente.",
 		"mundo_real": "Robôs varrem repositórios públicos atrás de chaves esquecidas e as usam em minutos."},
+	"iot": {"titulo": "IoT: a cidade conectada", "categoria": "Ataque",
+		"texto": "Câmeras, semáforos, caixas eletrônicos e painéis de LED são computadores ligados à rede. Muitos saem de fábrica com senha padrão, sistema desatualizado e portas abertas. Um invasor que encontra um desses aparelhos pode espionar, desligar ou usar o equipamento como ponte para atacar outras redes.",
+		"mundo_real": "Botnets como a Mirai sequestraram centenas de milhares de câmeras com senha padrão e derrubaram grandes sites. Trocar a senha, atualizar e isolar a rede resolve a maioria dos casos."},
+	"pentest_autorizado": {"titulo": "Pentest: hackear com permissão", "categoria": "Conceito",
+		"texto": "Pentest é um teste de invasão contratado pelo dono do sistema. O pentester tenta entrar como um criminoso faria, mas com autorização por escrito, escopo definido e a obrigação de relatar tudo o que encontrar para que seja corrigido. Sem autorização, a mesma ação é crime.",
+		"mundo_real": "Empresas e governos pagam pentests e programas de bug bounty. No Brasil, invadir dispositivo sem autorização é crime previsto na Lei 12.737/2012."},
 }
 
 const QUIZ := [

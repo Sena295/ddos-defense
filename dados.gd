@@ -271,6 +271,15 @@ const ITENS := {
 	"headset": {"nome": "Headset gamer", "tipo": "acessorio", "preco": 450.0, "descricao": "Para atender o plantão com estilo."},
 	"bone": {"nome": "Boné dev", "tipo": "chapeu", "preco": 250.0, "descricao": "Clássico de hackathon."},
 	"gorro": {"nome": "Gorro", "tipo": "chapeu", "preco": 250.0, "descricao": "Data center é sempre gelado."},
+	"bone_tras": {"nome": "Boné para trás", "tipo": "chapeu", "preco": 350.0, "descricao": "Aba virada e logo neon. Modo foco ativado."},
+	"oculos_nerd": {"nome": "Óculos de dev", "tipo": "acessorio", "preco": 250.0, "descricao": "Armação redonda para revisar pull request."},
+	"fone_grande": {"nome": "Fone over-ear", "tipo": "acessorio", "preco": 550.0, "descricao": "Cancelamento de ruído para codar em paz."},
+	"bandana": {"nome": "Bandana", "tipo": "acessorio", "preco": 400.0, "descricao": "Estilo de quem vive no Beco Hacker."},
+	"mascara_led": {"nome": "Máscara LED", "tipo": "acessorio", "preco": 1800.0, "descricao": "Máscara com painel de LED. Ícone dos hackers éticos da cidade."},
+	"camiseta_dev": {"nome": "Camiseta </>", "tipo": "roupa", "preco": 350.0, "descricao": "A camiseta oficial de todo dev."},
+	"xadrez": {"nome": "Camisa xadrez", "tipo": "roupa", "preco": 450.0, "descricao": "Flanela aberta por cima da camiseta. Clássico do escritório tech."},
+	"jaqueta": {"nome": "Jaqueta bomber", "tipo": "roupa", "preco": 900.0, "descricao": "Verde-oliva com forro laranja."},
+	"capuz_hacker": {"nome": "Moletom neon", "tipo": "roupa", "preco": 1600.0, "descricao": "Capuz levantado e caveira neon. Estilo hacker de rua."},
 	"capuz": {"nome": "Moletom com capuz", "tipo": "roupa", "preco": 600.0, "descricao": "O uniforme oficial de quem defende a rede."},
 	"jaleco": {"nome": "Jaleco de laboratório", "tipo": "roupa", "preco": 800.0, "descricao": "Para pesquisadores de malware."},
 	"terno": {"nome": "Terno de CEO", "tipo": "roupa", "preco": 1500.0, "descricao": "Para a reunião com o conselho."},
@@ -294,11 +303,14 @@ const MISSOES := [
 	{"id": "m_onda", "titulo": "Sobrevivente", "descricao": "Complete um dia de ataque de hackers.", "contador": "ondas_hacker", "alvo": 1, "dinheiro": 600.0, "xp": 200, "requer": "m_backup"},
 	{"id": "m_incidente", "titulo": "Resposta a incidentes", "descricao": "Escolha a resposta certa em um incidente de segurança.", "contador": "incidentes_certos", "alvo": 1, "dinheiro": 400.0, "xp": 150, "requer": "m_backup"},
 	{"id": "m_compra", "titulo": "Investidor", "descricao": "Compre sua primeira empresa (no prédio dela ou na Bolsa Tech).", "contador": "empresas_compradas", "alvo": 1, "dinheiro": 500.0, "xp": 200, "requer": "m_onda"},
-	{"id": "m_startup", "titulo": "Fundador", "descricao": "Crie sua própria empresa no Terreno da Startup.", "contador": "empresa_criada", "alvo": 1, "dinheiro": 800.0, "xp": 300, "requer": "m_compra"},
+	{"id": "m_startup", "titulo": "Fundador", "descricao": "Compre um terreno e funde sua startup nele.", "contador": "empresa_criada", "alvo": 1, "dinheiro": 800.0, "xp": 300, "requer": "m_compra"},
 	{"id": "m_cacador", "titulo": "Caçador de bugs", "descricao": "Resolva 6 desafios de código.", "contador": "desafios_resolvidos", "alvo": 6, "dinheiro": 900.0, "xp": 350, "requer": "m_lab"},
 	{"id": "m_uptime", "titulo": "Uptime de elite", "descricao": "Termine 3 dias sem nenhuma torre cair.", "contador": "dias_sem_queda", "alvo": 3, "dinheiro": 700.0, "xp": 250, "requer": "m_escala"},
 	{"id": "m_muralha", "titulo": "Muralha", "descricao": "Bloqueie 500 ataques de hackers.", "contador": "hackers_bloqueados", "alvo": 500, "dinheiro": 1200.0, "xp": 400, "requer": "m_onda"},
 	{"id": "m_magnata", "titulo": "Magnata", "descricao": "Seja dono de 3 empresas.", "contador": "empresas_proprias", "alvo": 3, "dinheiro": 3000.0, "xp": 600, "requer": "m_compra"},
+	{"id": "m_terreno", "titulo": "Dono de terra", "descricao": "Compre um terreno no Bairro Sul ou no Distrito Neon (veja a Imobiliária).", "contador": "terrenos_comprados", "alvo": 1, "dinheiro": 400.0, "xp": 150, "requer": "m_onda"},
+	{"id": "m_pentest", "titulo": "Hacker do bem", "descricao": "Faça 3 pentests autorizados em câmeras ou caixas eletrônicos da cidade.", "contador": "pentests", "alvo": 3, "dinheiro": 600.0, "xp": 220, "requer": "m_lab"},
+	{"id": "m_construtor", "titulo": "Construtor", "descricao": "Construa 2 imóveis nos seus terrenos.", "contador": "construcoes", "alvo": 2, "dinheiro": 900.0, "xp": 300, "requer": "m_terreno"},
 	{"id": "m_lenda", "titulo": "Lenda", "descricao": "Chegue ao dia 15 em qualquer empresa.", "contador": "maior_dia", "alvo": 15, "dinheiro": 5000.0, "xp": 1000, "requer": "m_uptime"},
 ]
 
@@ -310,8 +322,61 @@ const DIARIAS := [
 	{"id": "d_uptime", "titulo": "Zero quedas", "descricao": "Termine 1 dia sem nenhuma torre cair.", "contador": "dias_sem_queda", "alvo": 1, "dinheiro": 300.0, "xp": 100},
 	{"id": "d_quiz", "titulo": "Conselho satisfeito", "descricao": "Acerte 1 quiz do conselho.", "contador": "quiz_acertos", "alvo": 1, "dinheiro": 200.0, "xp": 80},
 	{"id": "d_construir", "titulo": "Obras", "descricao": "Instale 4 componentes.", "contador": "componentes_instalados", "alvo": 4, "dinheiro": 200.0, "xp": 70},
+	{"id": "d_pentest", "titulo": "Pentest do dia", "descricao": "Faça 1 pentest autorizado na cidade.", "contador": "pentests", "alvo": 1, "dinheiro": 300.0, "xp": 100},
+	{"id": "d_ctf", "titulo": "Arena CTF", "descricao": "Acerte 2 perguntas na Arena CTF.", "contador": "ctf_acertos", "alvo": 2, "dinheiro": 250.0, "xp": 90},
 	{"id": "d_clientes", "titulo": "Cliente feliz", "descricao": "Atenda 1.000 clientes.", "contador": "clientes_atendidos", "alvo": 1000, "dinheiro": 300.0, "xp": 90},
 ]
+
+
+const CONSTRUCOES := {
+	"cafe": {"nome": "Café Dev", "custo": 2500.0, "renda": 120.0, "xp": 0, "nivel": 0, "altura": 72.0, "cor": Color("f97316"), "parede": Color("f6e7d5"), "descricao": "Café e tomada para todo mundo. Rende um pouco todo dia."},
+	"loja_hardware": {"nome": "Loja de Hardware", "custo": 4000.0, "renda": 200.0, "xp": 0, "nivel": 1, "altura": 84.0, "cor": Color("84cc16"), "parede": Color("eef6dc"), "descricao": "Placas de vídeo, teclados mecânicos e cabos. Clientes fiéis."},
+	"coworking": {"nome": "Coworking", "custo": 5500.0, "renda": 280.0, "xp": 0, "nivel": 1, "altura": 116.0, "cor": Color("0ea5e9"), "parede": Color("e2ebf3"), "descricao": "Mesas alugadas para devs e startups. Renda estável."},
+	"escola": {"nome": "Escola de Programação", "custo": 7000.0, "renda": 260.0, "xp": 40, "nivel": 2, "altura": 104.0, "cor": Color("a855f7"), "parede": Color("efe7fb"), "descricao": "Forma novos talentos. Rende dinheiro e experiência todo dia."},
+	"datacenter_p": {"nome": "Mini Data Center", "custo": 9500.0, "renda": 520.0, "xp": 0, "nivel": 2, "altura": 90.0, "cor": Color("38bdf8"), "parede": Color("cfd8e3"), "descricao": "Aluga servidores para outras empresas. A melhor renda da cidade."},
+}
+
+const LOTES := [
+	{"id": "lote_centro", "nome": "Terreno do Centro", "area": Rect2i(38, 16, 5, 4), "preco": 4000.0, "bairro": "Centro"},
+	{"id": "lote_s1", "nome": "Terreno S1", "area": Rect2i(1, 32, 4, 4), "preco": 2500.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s2", "nome": "Terreno S2", "area": Rect2i(6, 32, 4, 4), "preco": 2500.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s3", "nome": "Terreno S3", "area": Rect2i(1, 38, 4, 4), "preco": 2200.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s4", "nome": "Terreno S4", "area": Rect2i(6, 38, 4, 4), "preco": 2200.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s5", "nome": "Terreno S5", "area": Rect2i(16, 32, 4, 4), "preco": 3500.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s6", "nome": "Terreno S6", "area": Rect2i(21, 32, 4, 4), "preco": 3500.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s7", "nome": "Terreno S7", "area": Rect2i(16, 38, 4, 4), "preco": 3200.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s8", "nome": "Terreno S8", "area": Rect2i(21, 38, 4, 4), "preco": 3200.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s9", "nome": "Terreno S9", "area": Rect2i(32, 32, 4, 4), "preco": 3000.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s10", "nome": "Terreno S10", "area": Rect2i(37, 32, 4, 4), "preco": 3000.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s11", "nome": "Terreno S11", "area": Rect2i(32, 38, 4, 4), "preco": 2800.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s12", "nome": "Terreno S12", "area": Rect2i(37, 38, 4, 4), "preco": 2800.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s13", "nome": "Terreno S13", "area": Rect2i(47, 32, 4, 4), "preco": 4200.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s14", "nome": "Terreno S14", "area": Rect2i(52, 32, 4, 4), "preco": 4200.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s15", "nome": "Terreno S15", "area": Rect2i(57, 32, 4, 4), "preco": 4200.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s16", "nome": "Terreno S16", "area": Rect2i(47, 38, 4, 4), "preco": 3900.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s17", "nome": "Terreno S17", "area": Rect2i(52, 38, 4, 4), "preco": 3900.0, "bairro": "Bairro Sul"},
+	{"id": "lote_s18", "nome": "Terreno S18", "area": Rect2i(57, 38, 4, 4), "preco": 3900.0, "bairro": "Bairro Sul"},
+	{"id": "lote_n1", "nome": "Terreno Neon 1", "area": Rect2i(47, 17, 4, 4), "preco": 6000.0, "bairro": "Distrito Neon"},
+	{"id": "lote_n2", "nome": "Terreno Neon 2", "area": Rect2i(52, 17, 4, 4), "preco": 6000.0, "bairro": "Distrito Neon"},
+	{"id": "lote_n3", "nome": "Terreno Neon 3", "area": Rect2i(57, 17, 4, 4), "preco": 6000.0, "bairro": "Distrito Neon"},
+	{"id": "lote_n4", "nome": "Terreno Neon 4", "area": Rect2i(47, 23, 4, 4), "preco": 5500.0, "bairro": "Distrito Neon"},
+	{"id": "lote_n5", "nome": "Terreno Neon 5", "area": Rect2i(52, 23, 4, 4), "preco": 5500.0, "bairro": "Distrito Neon"},
+	{"id": "lote_n6", "nome": "Terreno Neon 6", "area": Rect2i(57, 23, 4, 4), "preco": 5500.0, "bairro": "Distrito Neon"},
+]
+
+const DISPOSITIVOS := [
+	{"id": "cam_centro", "nome": "Câmera de trânsito", "tipo": "camera", "pos": Vector2(12.5, 10.5), "recompensa": 300.0},
+	{"id": "atm_praca", "nome": "Caixa eletrônico", "tipo": "atm", "pos": Vector2(28.5, 6.5), "recompensa": 400.0},
+	{"id": "cam_sede", "nome": "Câmera da avenida", "tipo": "camera", "pos": Vector2(31.5, 20.5), "recompensa": 300.0},
+	{"id": "semaforo", "nome": "Semáforo inteligente", "tipo": "semaforo", "pos": Vector2(15.5, 24.5), "recompensa": 350.0},
+	{"id": "cam_leste", "nome": "Câmera do viaduto", "tipo": "camera", "pos": Vector2(43.5, 9.5), "recompensa": 300.0},
+	{"id": "atm_neon", "nome": "Caixa eletrônico neon", "tipo": "atm", "pos": Vector2(46.5, 20.5), "recompensa": 450.0},
+	{"id": "painel_neon", "nome": "Painel de LED", "tipo": "semaforo", "pos": Vector2(46.5, 5.5), "recompensa": 400.0},
+	{"id": "cam_sul", "nome": "Câmera do bairro", "tipo": "camera", "pos": Vector2(31.5, 36.5), "recompensa": 300.0},
+	{"id": "atm_sul", "nome": "Caixa eletrônico do bairro", "tipo": "atm", "pos": Vector2(12.5, 40.5), "recompensa": 350.0},
+]
+
+const CODIGOS_BREACH := ["1C", "55", "BD", "E9", "7A", "FF"]
 
 const CORES_PELE := [Color("f9d7b5"), Color("eab98f"), Color("c98f63"), Color("a26a42"), Color("7a4a2a"), Color("4e2f1b")]
 const CORES_CABELO := [Color("1f1a17"), Color("4a2f1b"), Color("8d5a2b"), Color("d6a85c"), Color("e5e7eb"), Color("ef4444"), Color("3b82f6"), Color("22c55e"), Color("a855f7"), Color("f472b6")]

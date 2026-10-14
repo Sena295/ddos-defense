@@ -20,6 +20,7 @@ const MAX_RECOMPENSA_SEQUENCIA := 700.0
 const XP_LICAO := 15
 const XP_DIA_BASE := 15
 const XP_DIA_EXTRA := 4
+const PREMIO_CTF := 250.0
 const XP_DESAFIO := 100
 const DINHEIRO_DESAFIO := 250.0
 const DESAFIOS_POR_NIVEL_CODIGO := 3
@@ -46,6 +47,7 @@ func padrao(nome: String) -> Dictionary:
 		"sequencia": {"ultimo": "", "dias": 0, "melhor": 0},
 		"diarias": {"data": "", "contadores": {}, "resgatadas": []},
 		"mundo": [21.5, 21.2], "operacoes": {}, "quiz_usados": [],
+		"terrenos": {}, "pentests": {"data": "", "feitos": []}, "ctf": {"data": "", "feito": false}, "graficos_leves": false,
 	}
 
 
@@ -61,6 +63,9 @@ func normalizar(p: Dictionary) -> Dictionary:
 			p["equipados"][chave] = ""
 	p["xp"] = int(p["xp"])
 	p["dinheiro"] = float(p["dinheiro"])
+	if not p["startup"].is_empty() and String(p["startup"].get("lote", "")) == "":
+		p["startup"]["lote"] = "lote_centro"
+		p["terrenos"]["lote_centro"] = "startup"
 	if not p["startup"].is_empty() and p["startup"].has("logo"):
 		var logo: Dictionary = p["startup"]["logo"]
 		for chave in ["cor", "cor2"]:
@@ -505,21 +510,139 @@ func comprar_empresa(id: String) -> String:
 	return ""
 
 
-func criar_startup(nome: String, sigla: String, setor_indice: int, logo: Dictionary) -> String:
+func criar_startup(nome: String, sigla: String, setor_indice: int, logo: Dictionary, lote := "") -> String:
 	if not perfil.get("startup", {}).is_empty():
 		return "Você já tem uma empresa própria"
+	if lote == "" or not possui_terreno(lote) or String(perfil["terrenos"][lote]) != "":
+		return "Escolha um terreno seu e vazio para fundar a startup"
 	if nome.strip_edges().length() < 2:
 		return "Dê um nome para a empresa"
 	if not gastar(Dados.CUSTO_STARTUP):
 		return "Fundar custa R$ %d mil" % roundi(Dados.CUSTO_STARTUP)
 	var setor: Dictionary = Dados.SETORES_STARTUP[setor_indice]
-	perfil["startup"] = {"nome": nome.strip_edges(), "sigla": sigla.strip_edges().to_upper().substr(0, 2), "setor": setor["setor"], "base": setor["base"],
+	perfil["startup"] = {"nome": nome.strip_edges(), "sigla": sigla.strip_edges().to_upper().substr(0, 2), "setor": setor["setor"], "base": setor["base"], "lote": lote,
 		"logo": {"forma": logo["forma"], "cor": int(logo["cor"]), "cor2": int(logo["cor2"]), "icone": logo["icone"]}}
+	perfil["terrenos"][lote] = "startup"
 	somar("empresa_criada")
 	registrar_maximo("empresas_proprias", quantidade_empresas())
-	avisar("%s foi fundada! O prédio dela apareceu no Terreno da Startup" % nome, COR_OURO)
+	avisar("%s foi fundada! A sede dela já está de pé no seu terreno" % nome, COR_OURO)
 	salvar()
 	return ""
+
+
+func lote_por_id(id: String) -> Dictionary:
+	for l in Dados.LOTES:
+		if l["id"] == id:
+			return l
+	return {}
+
+
+func possui_terreno(id: String) -> bool:
+	return perfil.get("terrenos", {}).has(id)
+
+
+func construcao(id: String) -> String:
+	return String(perfil.get("terrenos", {}).get(id, ""))
+
+
+func comprar_terreno(id: String) -> String:
+	var lote := lote_por_id(id)
+	if lote.is_empty():
+		return "Terreno inválido"
+	if possui_terreno(id):
+		return "Esse terreno já é seu"
+	if not gastar(float(lote["preco"])):
+		return "Dinheiro insuficiente na carteira"
+	perfil["terrenos"][id] = ""
+	somar("terrenos_comprados")
+	avisar("%s agora é seu! Escolha o que construir nele" % lote["nome"], COR_OURO)
+	salvar()
+	return ""
+
+
+func construir(id: String, tipo: String) -> String:
+	if not possui_terreno(id):
+		return "Compre o terreno primeiro"
+	if construcao(id) != "":
+		return "Já existe uma construção aqui"
+	if not Dados.CONSTRUCOES.has(tipo):
+		return "Construção inválida"
+	var dados: Dictionary = Dados.CONSTRUCOES[tipo]
+	if nivel() < int(dados["nivel"]):
+		return "Precisa ser %s" % Dados.NIVEIS[int(dados["nivel"])]["titulo"]
+	if not gastar(float(dados["custo"])):
+		return "Dinheiro insuficiente na carteira"
+	perfil["terrenos"][id] = tipo
+	somar("construcoes")
+	avisar("%s inaugurado! Rende %s por dia operado" % [dados["nome"], "R$ %d mil" % roundi(dados["renda"])], COR_OURO)
+	salvar()
+	return ""
+
+
+func demolir(id: String) -> void:
+	var tipo := construcao(id)
+	if tipo == "" or tipo == "startup":
+		return
+	perfil["terrenos"][id] = ""
+	perfil["dinheiro"] = dinheiro() + float(Dados.CONSTRUCOES[tipo]["custo"]) * 0.5
+	salvar()
+
+
+func renda_imoveis() -> float:
+	var total := 0.0
+	for id in perfil.get("terrenos", {}):
+		var tipo := String(perfil["terrenos"][id])
+		if Dados.CONSTRUCOES.has(tipo):
+			total += float(Dados.CONSTRUCOES[tipo]["renda"])
+	return total
+
+
+func xp_imoveis() -> int:
+	var total := 0
+	for id in perfil.get("terrenos", {}):
+		var tipo := String(perfil["terrenos"][id])
+		if Dados.CONSTRUCOES.has(tipo):
+			total += int(Dados.CONSTRUCOES[tipo]["xp"])
+	return total
+
+
+func pentests_hoje() -> Array:
+	var registro: Dictionary = perfil["pentests"]
+	if registro.get("data", "") != hoje():
+		registro["data"] = hoje()
+		registro["feitos"] = []
+	return registro["feitos"]
+
+
+func pentest_feito(id: String) -> bool:
+	return id in pentests_hoje()
+
+
+func registrar_pentest(id: String, recompensa: float) -> bool:
+	if pentest_feito(id):
+		return false
+	pentests_hoje().append(id)
+	perfil["dinheiro"] = dinheiro() + recompensa
+	somar("pentests")
+	ganhar_xp(60)
+	desbloquear_licao("iot")
+	desbloquear_licao("pentest_autorizado")
+	salvar()
+	return true
+
+
+func ctf_disponivel() -> bool:
+	return perfil["ctf"].get("data", "") != hoje()
+
+
+func registrar_ctf(acertos: int) -> float:
+	perfil["ctf"] = {"data": hoje(), "feito": true}
+	var premio := acertos * PREMIO_CTF
+	perfil["dinheiro"] = dinheiro() + premio
+	somar("ctf_acertos", acertos)
+	ganhar_xp(25 * acertos)
+	salvar()
+	return premio
 
 
 func registrar_dia(id: String, dia: int, lucro: float) -> float:
@@ -528,10 +651,10 @@ func registrar_dia(id: String, dia: int, lucro: float) -> float:
 	est["lucro"] = float(est["lucro"]) + lucro
 	registrar_maximo("maior_dia", dia)
 	somar("dias_operados")
-	var dividendo := maxf(0.0, lucro) * participacao(id)
+	var dividendo := maxf(0.0, lucro) * participacao(id) + renda_imoveis()
 	if dividendo > 0.0:
 		perfil["dinheiro"] = dinheiro() + dividendo
-	ganhar_xp(XP_DIA_BASE + XP_DIA_EXTRA * dia)
+	ganhar_xp(XP_DIA_BASE + XP_DIA_EXTRA * dia + xp_imoveis())
 	salvar()
 	return dividendo
 

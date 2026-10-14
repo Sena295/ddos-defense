@@ -290,8 +290,8 @@ func desenhar_carregando() -> void:
 			draw_rect(Rect2(x - 4, 552, 8, 8), Visual.BOT if bot else Visual.HUMANO)
 	Visual.caixa(self, Rect2(620, 532, 40, 48), Visual.CARTAO, 10, Visual.DESTAQUE, 1)
 	Visual.icone(self, "waf", Vector2(640, 556), Visual.DESTAQUE, 0.9)
-	Visual.avatar(self, Vector2(250, 600), 1.4, {"corpo": 0, "pele": 2, "cabelo": 2, "cor_cabelo": 6, "roupa": 0, "cor_roupa": 5, "olhos": 2}, {"roupa": "capuz", "acessorio": "headset"}, tempo, false)
-	Visual.avatar(self, Vector2(1030, 600), 1.4, {"corpo": 1, "pele": 0, "cabelo": 7, "cor_cabelo": 3, "roupa": 1, "cor_roupa": 0, "olhos": 1}, {"acessorio": "oculos_hacker"}, tempo + 1.0, false)
+	Visual.avatar(self, Vector2(250, 600), 2.0, {"corpo": 0, "pele": 2, "cabelo": 2, "cor_cabelo": 6, "roupa": 0, "cor_roupa": 5, "olhos": 2}, {"roupa": "capuz", "acessorio": "headset"}, tempo, false)
+	Visual.avatar(self, Vector2(1030, 600), 2.0, {"corpo": 1, "pele": 0, "cabelo": 7, "cor_cabelo": 3, "roupa": 1, "cor_roupa": 0, "olhos": 1}, {"acessorio": "oculos_hacker"}, tempo + 1.0, false)
 	if tempo_carregando > 0.3:
 		Visual.texto(self, Vector2(0, 690), "Toque para pular", 13, Visual.TEXTO_SUAVE, HORIZONTAL_ALIGNMENT_CENTER, 1280)
 
@@ -306,7 +306,7 @@ func desenhar_login() -> void:
 		var r := retangulo_conta(i)
 		Visual.caixa(self, r, Visual.CARTAO, 16, Visual.DESTAQUE if r.has_point(mouse) else Visual.BORDA, 1, 10)
 		Visual.palco(self, Rect2(r.position + Vector2(14, 14), Vector2(96, 108)), 12)
-		Visual.avatar(self, r.position + Vector2(62, 116), 1.5, p.get("avatar", {}), p.get("equipados", {}), tempo + i, false)
+		Visual.avatar(self, r.position + Vector2(62, 116), 1.0, p.get("avatar", {}), p.get("equipados", {}), tempo + i, false)
 		Visual.texto(self, r.position + Vector2(126, 42), p.get("nome", ""), 19, Visual.TEXTO)
 		Visual.texto(self, r.position + Vector2(126, 66), Dados.NIVEIS[Dados.nivel_por_xp(int(p.get("xp", 0)))]["titulo"], 13, Visual.DESTAQUE)
 		Visual.texto(self, r.position + Vector2(126, 92), Visual.dinheiro(float(p.get("dinheiro", 0.0))), 15, Visual.CREDITOS)

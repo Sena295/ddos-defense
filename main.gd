@@ -3,6 +3,9 @@ extends Node2D
 const Estado := preload("res://estado.gd")
 const Visual := preload("res://visual.gd")
 
+const FPS_NORMAL := 60
+const FPS_LEVE := 30
+
 var estado
 var inicio
 var mundo
@@ -22,6 +25,7 @@ func _ready() -> void:
 	operacao = criar("res://operacao.gd")
 	paineis = criar("res://paineis.gd")
 	topo = criar("res://topo.gd")
+	Engine.max_fps = FPS_NORMAL
 	ir_para("inicio")
 
 
@@ -42,6 +46,7 @@ func ir_para(nome: String) -> void:
 
 func entrar_jogo(novo: bool) -> void:
 	mundo.preparar()
+	aplicar_graficos()
 	ir_para("mundo")
 	if novo:
 		paineis.abrir("intro", {})
@@ -52,6 +57,15 @@ func entrar_jogo(novo: bool) -> void:
 		avisar("Bem-vindo à versão 4! Seus recordes e lições da versão anterior vieram junto, com bônus de veterano", Visual.CREDITOS)
 	else:
 		avisar("Bem-vindo de volta, %s!" % estado.perfil["nome"], Visual.DESTAQUE)
+
+
+func aplicar_graficos() -> void:
+	var leve: bool = estado.perfil.get("graficos_leves", false) if not estado.perfil.is_empty() else false
+	Engine.max_fps = FPS_LEVE if leve else FPS_NORMAL
+	if not estado.perfil.is_empty():
+		mundo.carros = []
+		mundo.criar_carros()
+		mundo.criar_npcs()
 
 
 func abrir_painel(tipo: String, dados: Dictionary) -> void:
@@ -77,6 +91,7 @@ func sair_conta() -> void:
 	estado.sair()
 	topo.avisos = []
 	paineis.fechar()
+	Engine.max_fps = FPS_NORMAL
 	ir_para("inicio")
 	inicio.mostrar()
 

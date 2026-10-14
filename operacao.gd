@@ -1820,7 +1820,7 @@ func desenhar_relatorio() -> void:
 		["Receita", Visual.dinheiro(relatorio["receita"]), Visual.HUMANO],
 		["Prejuízos e multas", Visual.dinheiro(-prejuizos) if prejuizos > 0.5 else "R$ 0", Visual.PERIGO],
 		["Aporte do conselho", Visual.dinheiro(relatorio["aporte"]), Visual.DESTAQUE],
-		["Seus dividendos", "+" + Visual.dinheiro(relatorio["dividendo"]), Visual.CREDITOS],
+		["Dividendos e aluguéis", "+" + Visual.dinheiro(relatorio["dividendo"]), Visual.CREDITOS],
 	]
 	for i in valores.size():
 		var r := Rect2(x + i * 236, 104, 224, 64)

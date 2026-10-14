@@ -67,7 +67,7 @@ func clicar(pos: Vector2) -> bool:
 func desenhar(ci: CanvasItem, tempo: float, mouse: Vector2) -> void:
 	var palco := Rect2(origem, Vector2(300, 420))
 	Visual.palco(ci, palco)
-	Visual.avatar(ci, palco.position + Vector2(150, 360), 3.6, aparencia, equipados, tempo, false)
+	Visual.avatar(ci, palco.position + Vector2(150, 360), 4.0, aparencia, equipados, tempo, false)
 	if equipados.get("pet", "") != "":
 		Visual.pet(ci, palco.position + Vector2(240, 372), equipados["pet"], tempo, -1, 2.4)
 	var x0 := origem.x + 330.0

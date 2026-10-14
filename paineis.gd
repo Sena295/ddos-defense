@@ -9,6 +9,11 @@ const EditorAvatar := preload("res://editor_avatar.gd")
 const CARTAO := Rect2(80, 44, 1120, 632)
 const RET_FECHAR := Rect2(1146, 60, 38, 38)
 const POR_PAGINA := 16
+const TAMANHO_MATRIZ := 5
+const TAMANHO_ALVO := 3
+const TAMANHO_BUFFER := 6
+const TEMPO_PENTEST := 30.0
+const PERGUNTAS_CTF := 3
 const CORES_LINGUAGEM := {"Python": Color("3b82f6"), "JavaScript": Color("eab308"), "PHP": Color("8b5cf6"), "Java": Color("f97316"), "Bash": Color("22c55e"), "SQL": Color("06b6d4"), "C": Color("94a3b8"), "Go": Color("38bdf8")}
 
 var principal
@@ -17,7 +22,8 @@ var dados: Dictionary = {}
 var mouse := Vector2.ZERO
 var tempo := 0.0
 var pagina := 0
-var aba_loja := "visual"
+var aba_loja := "roupa"
+var direcao_previa := 1
 var editor := EditorAvatar.new()
 var campo_startup: LineEdit
 var campo_codigo: LineEdit
@@ -85,6 +91,10 @@ func abrir(tipo: String, d: Dictionary) -> void:
 		editor.origem = Vector2(130, 130)
 	if tipo == "startup":
 		campo_startup.text = ""
+	if tipo == "pentest":
+		iniciar_pentest()
+	if tipo == "arena" and estado().ctf_disponivel():
+		iniciar_ctf()
 	if tipo == "backup":
 		campo_codigo.text = ""
 
@@ -111,6 +121,10 @@ func _process(delta: float) -> void:
 	mouse = get_local_mouse_position()
 	campo_startup.visible = painel == "startup" and estado().perfil.get("startup", {}).is_empty() and not principal.licao_aberta()
 	campo_codigo.visible = painel == "backup" and not principal.licao_aberta()
+	if painel == "pentest" and dados.get("fase", "") == "jogando" and not principal.licao_aberta():
+		dados["tempo"] -= delta
+		if dados["tempo"] <= 0.0:
+			concluir_pentest(false)
 	queue_redraw()
 
 
@@ -166,6 +180,16 @@ func botao(rect: Rect2, rotulo: String, acao: Callable, ativo := true, estilo :=
 
 func botoes() -> Array:
 	match painel:
+		"terreno":
+			return botoes_terreno()
+		"imobiliaria":
+			return botoes_imobiliaria()
+		"pentest":
+			return botoes_pentest()
+		"zerosec":
+			return botoes_zerosec()
+		"arena":
+			return botoes_arena()
 		"missoes":
 			return botoes_missoes()
 		"loja":
@@ -207,13 +231,23 @@ func _draw() -> void:
 		desenhar_intro()
 		desenhar_botoes()
 		return
-	var fundo := Color("0b120d") if painel == "beco" else Visual.CARTAO
+	var fundo := Color("0b120d") if painel == "beco" else (Color("070b12") if painel == "pentest" or painel == "zerosec" else Visual.CARTAO)
 	Visual.caixa(self, CARTAO, fundo, 22, Color("166534") if painel == "beco" else Visual.BORDA, 1, 24)
 	Visual.caixa(self, RET_FECHAR, Visual.CARTAO_CLARO, 10, Visual.BORDA_HOVER if RET_FECHAR.has_point(mouse) else Visual.BORDA, 1)
 	var c := RET_FECHAR.get_center()
 	draw_line(c + Vector2(-7, -7), c + Vector2(7, 7), Visual.TEXTO, 2.0, true)
 	draw_line(c + Vector2(-7, 7), c + Vector2(7, -7), Visual.TEXTO, 2.0, true)
 	match painel:
+		"terreno":
+			desenhar_terreno()
+		"imobiliaria":
+			desenhar_imobiliaria()
+		"pentest":
+			desenhar_pentest()
+		"zerosec":
+			desenhar_zerosec()
+		"arena":
+			desenhar_arena()
 		"missoes":
 			desenhar_missoes()
 		"loja":
@@ -336,55 +370,75 @@ func resgatar(id: String, diaria: bool) -> void:
 func itens_loja() -> Array:
 	var lista: Array = []
 	for id in Dados.ITENS:
-		var reforco: bool = Dados.ITENS[id]["tipo"] == "reforco"
-		if (aba_loja == "reforcos") == reforco:
+		if Dados.ITENS[id]["tipo"] == aba_loja:
 			lista.append(id)
 	return lista
 
 
 func retangulo_item(indice: int) -> Rect2:
-	return Rect2(112 + (indice % 5) * 212, 194 + (indice / 5) * 222, 200, 212)
+	return Rect2(440 + (indice % 4) * 182, 196 + (indice / 4) * 236, 172, 226)
+
+
+func equipados_com(id: String) -> Dictionary:
+	var equipados: Dictionary = estado().perfil["equipados"].duplicate()
+	var tipo: String = Dados.ITENS[id]["tipo"]
+	if tipo != "reforco":
+		equipados[tipo] = id
+	return equipados
 
 
 func desenhar_loja() -> void:
-	cabecalho("Loja Tech", "Itens para o seu personagem e reforços para usar nas operações.")
+	cabecalho("Loja Tech  ·  Guarda-roupa", "Compre, vista e combine. Reforços ajudam nas operações.")
 	Visual.texto(self, Vector2(1160, 120), "Carteira: %s" % Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS, HORIZONTAL_ALIGNMENT_RIGHT, 300)
+	var palco := Rect2(112, 140, 300, 430)
+	Visual.palco(self, palco)
+	var p: Dictionary = estado().perfil
+	Visual.avatar(self, palco.position + Vector2(150, 400), 4.0, p["avatar"], p["equipados"], tempo, false, direcao_previa)
+	if p["equipados"].get("pet", "") != "":
+		Visual.pet(self, palco.position + Vector2(250, 410), p["equipados"]["pet"], tempo, direcao_previa, 2.0)
 	var itens := itens_loja()
 	for i in itens.size():
 		var id: String = itens[i]
 		var item: Dictionary = Dados.ITENS[id]
 		var r := retangulo_item(i)
 		var possui: bool = estado().possui_item(id)
-		Visual.caixa(self, r, Visual.CARTAO_CLARO, 14, Visual.BORDA_HOVER if r.has_point(mouse) else Visual.BORDA, 1)
-		var palco := Rect2(r.position + Vector2(10, 10), Vector2(r.size.x - 20, 96))
-		Visual.palco(self, palco, 10)
-		if item["tipo"] == "reforco":
-			var icones := {"seguro": "waf", "plantao": "servidor", "pentest": "ips", "consultoria": "treinamento"}
-			Visual.icone(self, icones[id], palco.get_center(), Visual.CREDITOS, 2.2)
-			Visual.texto(self, Vector2(palco.position.x, palco.end.y - 8), "Você tem: %d" % estado().reforcos(id), 11, Visual.TEXTO_SUAVE, HORIZONTAL_ALIGNMENT_CENTER, palco.size.x)
-		elif item["tipo"] == "pet":
-			Visual.pet(self, palco.position + Vector2(palco.size.x / 2, 88), id, tempo, 1, 2.4)
+		var vestido: bool = item["tipo"] != "reforco" and p["equipados"].get(item["tipo"], "") == id
+		Visual.caixa(self, r, Visual.CARTAO_CLARO, 14, Visual.HUMANO if vestido else (Visual.BORDA_HOVER if r.has_point(mouse) else Visual.BORDA), 2 if vestido else 1)
+		var vitrine := Rect2(r.position + Vector2(8, 8), Vector2(r.size.x - 16, 112))
+		Visual.palco(self, vitrine, 10)
+		match item["tipo"]:
+			"reforco":
+				var icones := {"seguro": "waf", "plantao": "servidor", "pentest": "ips", "consultoria": "treinamento"}
+				Visual.icone(self, icones[id], vitrine.get_center(), Visual.CREDITOS, 2.2)
+				Visual.texto(self, Vector2(vitrine.position.x, vitrine.end.y - 6), "Você tem: %d" % estado().reforcos(id), 11, Color("334155"), HORIZONTAL_ALIGNMENT_CENTER, vitrine.size.x)
+			"pet":
+				Visual.pet(self, vitrine.position + Vector2(vitrine.size.x / 2, 100), id, tempo, 1, 3.0)
+			_:
+				Visual.avatar(self, vitrine.position + Vector2(vitrine.size.x / 2, 106), 1.0, p["avatar"], equipados_com(id), tempo, false, 1)
+		Visual.texto(self, r.position + Vector2(12, 140), item["nome"], 14, Visual.TEXTO)
+		Visual.paragrafo(self, r.position + Vector2(12, 158), item["descricao"], 11, Visual.TEXTO_SUAVE, 150, 1.3, 2)
+		if item["tipo"] == "reforco" or not possui:
+			Visual.texto(self, r.position + Vector2(12, 210), Visual.dinheiro(item["preco"]), 13, Visual.CREDITOS)
+		elif vestido:
+			Visual.texto(self, r.position + Vector2(12, 210), "vestindo", 12, Visual.HUMANO)
 		else:
-			var equipados: Dictionary = estado().perfil["equipados"].duplicate()
-			equipados[item["tipo"]] = id
-			Visual.avatar(self, palco.position + Vector2(palco.size.x / 2, 92), 1.35, estado().perfil["avatar"], equipados, tempo, false)
-		Visual.texto(self, r.position + Vector2(14, 128), item["nome"], 15, Visual.TEXTO)
-		Visual.paragrafo(self, r.position + Vector2(14, 148), item["descricao"], 11, Visual.TEXTO_SUAVE, 176, 1.3, 2)
-		if not possui or item["tipo"] == "reforco":
-			Visual.texto(self, r.position + Vector2(14, 196), Visual.dinheiro(item["preco"]), 14, Visual.CREDITOS)
+			Visual.texto(self, r.position + Vector2(12, 210), "no armário", 12, Visual.TEXTO_SUAVE)
 
 
 func botoes_loja() -> Array:
-	var lista: Array = [
-		botao(Rect2(112, 140, 140, 40), "Visual", func(): aba_loja = "visual", aba_loja != "visual"),
-		botao(Rect2(262, 140, 140, 40), "Reforços", func(): aba_loja = "reforcos", aba_loja != "reforcos"),
-	]
+	var abas := [["chapeu", "Cabeça"], ["acessorio", "Rosto"], ["roupa", "Roupa"], ["pet", "Pet"], ["reforco", "Reforços"]]
+	var lista: Array = []
+	for k in abas.size():
+		var aba: Array = abas[k]
+		lista.append(botao(Rect2(440 + k * 146, 140, 138, 40), aba[1], func(): aba_loja = aba[0], aba_loja != aba[0]))
+	lista.append(botao(Rect2(112, 582, 146, 44), "Girar", func(): direcao_previa = -direcao_previa))
+	lista.append(botao(Rect2(266, 582, 146, 44), "Corpo e cabelo", abrir.bind("avatar", {})))
 	var itens := itens_loja()
 	for i in itens.size():
 		var id: String = itens[i]
 		var item: Dictionary = Dados.ITENS[id]
 		var r := retangulo_item(i)
-		var rb := Rect2(r.end.x - 94, r.end.y - 38, 84, 30)
+		var rb := Rect2(r.end.x - 84, r.end.y - 34, 76, 28)
 		if item["tipo"] != "reforco" and estado().possui_item(id):
 			var vestido: bool = estado().perfil["equipados"].get(item["tipo"], "") == id
 			lista.append(botao(rb, "Tirar" if vestido else "Vestir", estado().equipar.bind(id)))
@@ -721,7 +775,7 @@ func desenhar_sede() -> void:
 	cabecalho("Sua Sede", "Seu perfil, suas empresas e o controle da sua conta.")
 	var palco := Rect2(112, 150, 300, 380)
 	Visual.palco(self, palco)
-	Visual.avatar(self, palco.position + Vector2(150, 330), 3.2, p["avatar"], p["equipados"], tempo, false)
+	Visual.avatar(self, palco.position + Vector2(150, 330), 3.0, p["avatar"], p["equipados"], tempo, false)
 	if p["equipados"].get("pet", "") != "":
 		Visual.pet(self, palco.position + Vector2(240, 344), p["equipados"]["pet"], tempo, -1, 2.2)
 	Visual.texto(self, Vector2(112, 560), p["nome"], 22, Visual.TEXTO, HORIZONTAL_ALIGNMENT_CENTER, 300)
@@ -756,12 +810,21 @@ func desenhar_sede() -> void:
 
 func botoes_sede() -> Array:
 	return [
-		botao(Rect2(820, 160, 340, 50), "Editar visual", abrir.bind("avatar", {}), true, "principal"),
+		botao(Rect2(820, 160, 165, 50), "Corpo e cabelo", abrir.bind("avatar", {}), true, "principal"),
+		botao(Rect2(995, 160, 165, 50), "Guarda-roupa", abrir.bind("loja", {}), true, "principal"),
 		botao(Rect2(820, 222, 340, 50), "Código de backup", abrir.bind("backup", {})),
 		botao(Rect2(820, 284, 340, 50), "Política de privacidade", abrir.bind("politica", {})),
 		botao(Rect2(820, 346, 340, 50), "Trocar de conta", trocar_conta),
+		botao(Rect2(820, 408, 340, 50), "Modo leve: %s" % ("ligado" if estado().perfil.get("graficos_leves", false) else "desligado"), alternar_modo_leve),
 		botao(Rect2(820, 560, 340, 50), "Excluir conta", abrir.bind("excluir", {}), true, "perigo"),
 	]
+
+
+func alternar_modo_leve() -> void:
+	estado().perfil["graficos_leves"] = not estado().perfil.get("graficos_leves", false)
+	estado().salvar()
+	principal.aplicar_graficos()
+	principal.avisar("Modo leve ligado: menos moradores, carros e 30 quadros por segundo" if estado().perfil["graficos_leves"] else "Modo leve desligado", Visual.DESTAQUE)
 
 
 func trocar_conta() -> void:
@@ -820,7 +883,7 @@ func desenhar_startup() -> void:
 	if not estado().perfil.get("startup", {}).is_empty():
 		desenhar_empresa("startup")
 		return
-	cabecalho("Terreno da Startup", "Funde sua própria empresa por %s e fique com %d%% do lucro." % [Visual.dinheiro(Dados.CUSTO_STARTUP), roundi(Dados.PARTICIPACAO["propria"] * 100)])
+	cabecalho("Fundar sua startup", "Custa %s e você fica com %d%% do lucro. Ela será construída em %s." % [Visual.dinheiro(Dados.CUSTO_STARTUP), roundi(Dados.PARTICIPACAO["propria"] * 100), String(estado().lote_por_id(String(dados.get("lote", ""))).get("nome", "um terreno seu"))])
 	Visual.texto(self, Vector2(500, 142), "Nome da empresa", 13, Visual.TEXTO_SUAVE)
 	Visual.texto(self, Vector2(112, 230), "Setor", 13, Visual.TEXTO_SUAVE)
 	Visual.texto(self, Vector2(112, 320), "Forma do logo", 13, Visual.TEXTO_SUAVE)
@@ -886,7 +949,7 @@ func botoes_startup() -> Array:
 
 func fundar() -> void:
 	var nome := campo_startup.text.strip_edges()
-	var erro: String = estado().criar_startup(nome, sigla_de(nome), form_startup["setor"], {"forma": form_startup["forma"], "cor": form_startup["cor"], "cor2": form_startup["cor2"], "icone": form_startup["icone"]})
+	var erro: String = estado().criar_startup(nome, sigla_de(nome), form_startup["setor"], {"forma": form_startup["forma"], "cor": form_startup["cor"], "cor2": form_startup["cor2"], "icone": form_startup["icone"]}, String(dados.get("lote", "")))
 	if erro != "":
 		principal.avisar(erro, Visual.PERIGO)
 		return
@@ -949,6 +1012,388 @@ func importar_codigo() -> void:
 		principal.avisar("Conta atualizada com o código importado", Visual.HUMANO)
 	else:
 		principal.avisar("Conta %s importada. Ela aparece em Trocar de conta" % estado().perfis[id]["nome"], Visual.HUMANO)
+
+
+func desenhar_terreno() -> void:
+	var lote: Dictionary = estado().lote_por_id(dados.get("id", ""))
+	if lote.is_empty():
+		return
+	var a: Rect2i = lote["area"]
+	cabecalho(lote["nome"], "%s  ·  %dx%d quadras" % [lote["bairro"], a.size.x, a.size.y])
+	Visual.texto(self, Vector2(1160, 120), "Carteira: %s" % Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS, HORIZONTAL_ALIGNMENT_RIGHT, 300)
+	var id: String = lote["id"]
+	if not estado().possui_terreno(id):
+		Visual.caixa(self, Rect2(112, 150, 1056, 160), Visual.CARTAO_CLARO, 14)
+		Visual.texto(self, Vector2(140, 196), "Terreno à venda por %s" % Visual.dinheiro(lote["preco"]), 22, Visual.CREDITOS)
+		Visual.paragrafo(self, Vector2(140, 228), "Compre para construir um negócio que rende todo dia ou para fundar sua startup. Terrenos do Distrito Neon são mais caros, mas ficam no coração da cena hacker.", 14, Visual.TEXTO_SUAVE, 980, 1.45, 3)
+		return
+	var c: String = estado().construcao(id)
+	if c == "startup":
+		var s: Dictionary = estado().perfil["startup"]
+		Visual.texto(self, Vector2(112, 190), "Aqui fica a sede da %s." % s["nome"], 20, Visual.TEXTO)
+		Visual.texto(self, Vector2(112, 220), "Entre pela porta do prédio para operar a sua empresa.", 14, Visual.TEXTO_SUAVE)
+		return
+	if c != "":
+		var dc: Dictionary = Dados.CONSTRUCOES[c]
+		Visual.caixa(self, Rect2(112, 150, 1056, 200), Visual.CARTAO_CLARO, 14)
+		Visual.texto(self, Vector2(140, 196), dc["nome"], 24, dc["cor"])
+		Visual.paragrafo(self, Vector2(140, 226), dc["descricao"], 14, Visual.TEXTO_SUAVE, 980, 1.45, 2)
+		Visual.texto(self, Vector2(140, 290), "Rende %s por dia operado%s" % [Visual.dinheiro(dc["renda"]), "  ·  +%d XP" % int(dc["xp"]) if int(dc["xp"]) > 0 else ""], 16, Visual.HUMANO)
+		Visual.texto(self, Vector2(140, 320), "Renda total dos seus imóveis: %s por dia" % Visual.dinheiro(estado().renda_imoveis()), 13, Visual.TEXTO_SUAVE)
+		return
+	Visual.texto(self, Vector2(112, 160), "Seu terreno está vazio. O que vai construir?", 16, Visual.TEXTO)
+	var opcoes := opcoes_construcao()
+	for i in opcoes.size():
+		var r := retangulo_construcao(i)
+		var tipo: String = opcoes[i]
+		Visual.caixa(self, r, Visual.CARTAO_CLARO, 12, Visual.BORDA_HOVER if r.has_point(mouse) else Visual.BORDA, 1)
+		if tipo == "startup":
+			Visual.texto(self, r.position + Vector2(16, 30), "Sua startup", 17, Color("a78bfa"))
+			Visual.paragrafo(self, r.position + Vector2(16, 54), "Funde sua própria empresa aqui e fique com %d%% do lucro." % roundi(Dados.PARTICIPACAO["propria"] * 100), 12, Visual.TEXTO_SUAVE, 300, 1.35, 3)
+			Visual.texto(self, r.position + Vector2(16, 128), Visual.dinheiro(Dados.CUSTO_STARTUP), 14, Visual.CREDITOS)
+			continue
+		var dc2: Dictionary = Dados.CONSTRUCOES[tipo]
+		Visual.texto(self, r.position + Vector2(16, 30), dc2["nome"], 17, dc2["cor"])
+		Visual.paragrafo(self, r.position + Vector2(16, 54), dc2["descricao"], 12, Visual.TEXTO_SUAVE, 300, 1.35, 2)
+		Visual.texto(self, r.position + Vector2(16, 104), "Rende %s/dia" % Visual.dinheiro(dc2["renda"]), 12, Visual.HUMANO)
+		var bloqueado: bool = estado().nivel() < int(dc2["nivel"])
+		Visual.texto(self, r.position + Vector2(16, 128), "Precisa ser %s" % Dados.NIVEIS[int(dc2["nivel"])]["titulo"] if bloqueado else Visual.dinheiro(dc2["custo"]), 13 if bloqueado else 14, Visual.PERIGO if bloqueado else Visual.CREDITOS)
+
+
+func opcoes_construcao() -> Array:
+	var lista: Array = []
+	if estado().perfil.get("startup", {}).is_empty():
+		lista.append("startup")
+	for tipo in Dados.CONSTRUCOES:
+		lista.append(tipo)
+	return lista
+
+
+func retangulo_construcao(indice: int) -> Rect2:
+	return Rect2(112 + (indice % 3) * 356, 180 + (indice / 3) * 160, 344, 148)
+
+
+func botoes_terreno() -> Array:
+	var lista: Array = []
+	var id: String = dados.get("id", "")
+	var lote: Dictionary = estado().lote_por_id(id)
+	if lote.is_empty():
+		return lista
+	if not estado().possui_terreno(id):
+		lista.append(botao(Rect2(140, 260, 300, 46), "Comprar por %s" % Visual.dinheiro(lote["preco"]), comprar_terreno.bind(id), estado().dinheiro() >= float(lote["preco"]), "principal"))
+		lista.append(botao(Rect2(456, 260, 220, 46), "Ver a Imobiliária", abrir.bind("imobiliaria", {})))
+		return lista
+	var c: String = estado().construcao(id)
+	if c == "startup":
+		return lista
+	if c != "":
+		lista.append(botao(Rect2(860, 300, 280, 40), "Demolir (devolve 50%)", demolir.bind(id), true, "perigo"))
+		return lista
+	var opcoes := opcoes_construcao()
+	for i in opcoes.size():
+		var r := retangulo_construcao(i)
+		var rb := Rect2(r.end.x - 122, r.end.y - 40, 110, 32)
+		var tipo: String = opcoes[i]
+		if tipo == "startup":
+			lista.append(botao(rb, "Fundar", abrir.bind("startup", {"lote": id}), estado().dinheiro() >= Dados.CUSTO_STARTUP, "principal"))
+		else:
+			var dc: Dictionary = Dados.CONSTRUCOES[tipo]
+			var pode: bool = estado().nivel() >= int(dc["nivel"]) and estado().dinheiro() >= float(dc["custo"])
+			lista.append(botao(rb, "Construir", construir.bind(id, tipo), pode, "ouro"))
+	return lista
+
+
+func comprar_terreno(id: String) -> void:
+	var erro: String = estado().comprar_terreno(id)
+	if erro != "":
+		principal.avisar(erro, Visual.PERIGO)
+	else:
+		principal.confete(Vector2(640, 200), 50)
+
+
+func construir(id: String, tipo: String) -> void:
+	var erro: String = estado().construir(id, tipo)
+	if erro != "":
+		principal.avisar(erro, Visual.PERIGO)
+	else:
+		principal.confete(Vector2(640, 200), 70)
+
+
+func demolir(id: String) -> void:
+	estado().demolir(id)
+	principal.avisar("Construção demolida. Metade do custo voltou para a carteira", Visual.CREDITOS)
+
+
+func retangulo_lote(indice: int) -> Rect2:
+	return Rect2(112 + (indice % 5) * 212, 140 + (indice / 5) * 98, 204, 90)
+
+
+func desenhar_imobiliaria() -> void:
+	cabecalho("Imobiliária", "Terrenos da cidade. Renda dos seus imóveis: %s por dia operado." % Visual.dinheiro(estado().renda_imoveis()))
+	Visual.texto(self, Vector2(1160, 120), "Carteira: %s" % Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS, HORIZONTAL_ALIGNMENT_RIGHT, 300)
+	for i in Dados.LOTES.size():
+		var lote: Dictionary = Dados.LOTES[i]
+		var r := retangulo_lote(i)
+		var seu: bool = estado().possui_terreno(lote["id"])
+		Visual.caixa(self, r, Visual.CARTAO_CLARO, 10, Color("a78bfa") if seu else (Visual.BORDA_HOVER if r.has_point(mouse) else Visual.BORDA), 1)
+		Visual.texto(self, r.position + Vector2(12, 22), lote["nome"], 13, Visual.TEXTO)
+		Visual.texto(self, r.position + Vector2(12, 40), lote["bairro"], 11, Visual.TEXTO_SUAVE)
+		var status := Visual.dinheiro(lote["preco"])
+		var cor := Visual.CREDITOS
+		if seu:
+			var c: String = estado().construcao(lote["id"])
+			status = "Seu · vazio" if c == "" else ("Sua startup" if c == "startup" else String(Dados.CONSTRUCOES[c]["nome"]))
+			cor = Color("c4b5fd")
+		Visual.texto(self, r.position + Vector2(12, 74), status, 12, cor)
+
+
+func botoes_imobiliaria() -> Array:
+	var lista: Array = []
+	for i in Dados.LOTES.size():
+		var lote: Dictionary = Dados.LOTES[i]
+		var r := retangulo_lote(i)
+		var rb := Rect2(r.end.x - 84, r.end.y - 34, 76, 26)
+		if estado().possui_terreno(lote["id"]):
+			lista.append(botao(rb, "Abrir", abrir.bind("terreno", {"id": lote["id"]})))
+		else:
+			lista.append(botao(rb, "Comprar", comprar_terreno.bind(lote["id"]), estado().dinheiro() >= float(lote["preco"]), "ouro"))
+	return lista
+
+
+func dispositivo(id: String) -> Dictionary:
+	for d in Dados.DISPOSITIVOS:
+		if d["id"] == id:
+			return d
+	return {}
+
+
+func iniciar_pentest() -> void:
+	var gerador := RandomNumberGenerator.new()
+	gerador.randomize()
+	var matriz: Array = []
+	for i in TAMANHO_MATRIZ:
+		var linha: Array = []
+		for j in TAMANHO_MATRIZ:
+			linha.append(Dados.CODIGOS_BREACH[gerador.randi() % Dados.CODIGOS_BREACH.size()])
+		matriz.append(linha)
+	var alvo: Array = []
+	var linha_atual := 0
+	var coluna_atual := 0
+	var por_linha := true
+	var usados := {}
+	var solucao: Array = []
+	for k in TAMANHO_ALVO:
+		var opcoes: Array = []
+		for j in TAMANHO_MATRIZ:
+			var celula := Vector2i(linha_atual, j) if por_linha else Vector2i(j, coluna_atual)
+			if not usados.has(celula):
+				opcoes.append(celula)
+		var escolha: Vector2i = opcoes[gerador.randi() % opcoes.size()]
+		usados[escolha] = true
+		solucao.append(escolha)
+		alvo.append(matriz[escolha.x][escolha.y])
+		linha_atual = escolha.x
+		coluna_atual = escolha.y
+		por_linha = not por_linha
+	dados["matriz"] = matriz
+	dados["alvo"] = alvo
+	dados["solucao"] = solucao
+	dados["buffer"] = []
+	dados["usados"] = {}
+	dados["por_linha"] = true
+	dados["linha"] = 0
+	dados["coluna"] = 0
+	dados["tempo"] = TEMPO_PENTEST
+	dados["fase"] = "jogando"
+
+
+func retangulo_celula(i: int, j: int) -> Rect2:
+	return Rect2(132 + j * 74, 230 + i * 64, 66, 56)
+
+
+func celula_ativa(i: int, j: int) -> bool:
+	if dados.get("fase", "") != "jogando" or dados["usados"].has(Vector2i(i, j)):
+		return false
+	return i == dados["linha"] if dados["por_linha"] else j == dados["coluna"]
+
+
+func escolher_celula(i: int, j: int) -> void:
+	if not celula_ativa(i, j):
+		return
+	dados["usados"][Vector2i(i, j)] = true
+	dados["buffer"].append(dados["matriz"][i][j])
+	dados["linha"] = i
+	dados["coluna"] = j
+	dados["por_linha"] = not dados["por_linha"]
+	var buffer: Array = dados["buffer"]
+	var alvo: Array = dados["alvo"]
+	for inicio in range(0, buffer.size() - alvo.size() + 1):
+		if buffer.slice(inicio, inicio + alvo.size()) == alvo:
+			concluir_pentest(true)
+			return
+	if buffer.size() >= TAMANHO_BUFFER:
+		concluir_pentest(false)
+
+
+func concluir_pentest(sucesso: bool) -> void:
+	dados["fase"] = "sucesso" if sucesso else "falha"
+	if not sucesso:
+		return
+	var d := dispositivo(dados.get("id", ""))
+	if estado().registrar_pentest(d["id"], float(d["recompensa"])):
+		dados["pago"] = true
+		principal.confete(Vector2(640, 200), 60)
+		principal.avisar("Falha reportada ao dono. Contrato pago: +%s" % Visual.dinheiro(d["recompensa"]), Visual.HUMANO, "iot")
+
+
+func desenhar_pentest() -> void:
+	var d := dispositivo(dados.get("id", ""))
+	if d.is_empty():
+		return
+	if not dados.has("matriz"):
+		iniciar_pentest()
+	Visual.texto(self, Vector2(112, 94), "Pentest autorizado: %s" % d["nome"], 26, Color("22d3ee"))
+	Visual.texto(self, Vector2(112, 122), "A prefeitura contratou a ZeroSec. Ache a falha antes dos criminosos e reporte ao dono.", 14, Visual.TEXTO_SUAVE)
+	var fase: String = dados["fase"]
+	var matriz: Array = dados["matriz"]
+	Visual.texto(self, Vector2(132, 210), "MATRIZ DE ACESSO", 12, Color("22d3ee"))
+	for i in TAMANHO_MATRIZ:
+		for j in TAMANHO_MATRIZ:
+			var r := retangulo_celula(i, j)
+			var ativa := celula_ativa(i, j)
+			var usada: bool = dados["usados"].has(Vector2i(i, j))
+			var fundo := Color("0b1220")
+			if ativa:
+				fundo = Color("10263a") if not r.has_point(mouse) else Color("164e63")
+			Visual.caixa(self, r, fundo, 8, Color("22d3ee") if ativa else Color("1e293b"), 1)
+			Visual.texto(self, r.position + Vector2(0, 36), "[ ]" if usada else String(matriz[i][j]), 20, Color("334155") if usada else (Color("e0f2fe") if ativa else Color("64748b")), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	var x2 := 560.0
+	Visual.texto(self, Vector2(x2, 210), "SEQUÊNCIA DA FALHA", 12, Color("f472b6"))
+	var alvo: Array = dados["alvo"]
+	for k in alvo.size():
+		var r2 := Rect2(x2 + k * 74, 222, 66, 50)
+		Visual.caixa(self, r2, Color("1f1029"), 8, Color("f472b6"), 1)
+		Visual.texto(self, r2.position + Vector2(0, 33), alvo[k], 20, Color("fbcfe8"), HORIZONTAL_ALIGNMENT_CENTER, r2.size.x)
+	Visual.texto(self, Vector2(x2, 306), "BUFFER", 12, Visual.TEXTO_SUAVE)
+	var buffer: Array = dados["buffer"]
+	for k in TAMANHO_BUFFER:
+		var r3 := Rect2(x2 + k * 74, 318, 66, 50)
+		Visual.caixa(self, r3, Color("0b1220"), 8, Color("334155"), 1)
+		if k < buffer.size():
+			Visual.texto(self, r3.position + Vector2(0, 33), buffer[k], 20, Visual.TEXTO, HORIZONTAL_ALIGNMENT_CENTER, r3.size.x)
+	var trilho := Rect2(x2, 396, 440, 8)
+	Visual.caixa(self, trilho, Visual.LINHA, 4)
+	Visual.caixa(self, Rect2(trilho.position, Vector2(trilho.size.x * clampf(dados["tempo"] / TEMPO_PENTEST, 0.0, 1.0), 8)), Color("22d3ee") if dados["tempo"] > 8.0 else Visual.PERIGO, 4)
+	Visual.paragrafo(self, Vector2(x2, 430), "Escolha códigos alternando linha e coluna. Comece pela linha de cima. Monte a sequência da falha dentro do buffer antes do tempo acabar.", 13, Visual.TEXTO_SUAVE, 560, 1.45, 3)
+	if fase == "sucesso":
+		Visual.texto(self, Vector2(x2, 520), "Acesso confirmado! Vulnerabilidade documentada." if dados.get("pago", false) else "Acesso confirmado! (este aparelho já foi pago hoje)", 17, Visual.HUMANO)
+		Visual.paragrafo(self, Vector2(x2, 548), "No mundo real: senha padrão e sistema desatualizado em aparelhos IoT são a porta de entrada favorita. Relatório enviado para o dono corrigir.", 13, Visual.TEXTO_SUAVE, 560, 1.4, 3)
+	elif fase == "falha":
+		Visual.texto(self, Vector2(x2, 520), "O alarme de intrusão disparou. Tente de novo.", 17, Visual.PERIGO)
+
+
+func botoes_pentest() -> Array:
+	var lista: Array = []
+	if not dados.has("matriz"):
+		return lista
+	for i in TAMANHO_MATRIZ:
+		for j in TAMANHO_MATRIZ:
+			if celula_ativa(i, j):
+				lista.append({"rect": retangulo_celula(i, j), "rotulo": "", "acao": escolher_celula.bind(i, j), "ativo": true, "estilo": "invisivel"})
+	if dados["fase"] == "falha":
+		lista.append(botao(Rect2(560, 560, 200, 44), "Tentar de novo", iniciar_pentest, true, "principal"))
+	if dados["fase"] == "sucesso":
+		lista.append(botao(Rect2(560, 610, 200, 44), "Entender", principal.abrir_licao.bind("iot")))
+		lista.append(botao(Rect2(772, 610, 200, 44), "Fechar", fechar, true, "principal"))
+	return lista
+
+
+func desenhar_zerosec() -> void:
+	cabecalho("Hub ZeroSec", "Coletivo de hackers éticos. Aqui você pega contratos de pentest autorizado pela cidade.")
+	Visual.paragrafo(self, Vector2(112, 160), "Ande até câmeras, caixas eletrônicos e semáforos marcados com luz vermelha e aperte E. Cada aparelho paga uma vez por dia. Invadir sem autorização é crime: aqui tudo é contrato, com escopo e relatório.", 14, Visual.TEXTO_SUAVE, 1040, 1.45, 3)
+	for i in Dados.DISPOSITIVOS.size():
+		var d: Dictionary = Dados.DISPOSITIVOS[i]
+		var r := Rect2(112 + (i % 3) * 352, 250 + (i / 3) * 88, 340, 78)
+		var feito: bool = estado().pentest_feito(d["id"])
+		Visual.caixa(self, r, Visual.CARTAO_CLARO, 12, Visual.HUMANO if feito else Color("164e63"), 1)
+		Visual.texto(self, r.position + Vector2(16, 28), d["nome"], 15, Visual.TEXTO)
+		Visual.texto(self, r.position + Vector2(16, 52), "feito hoje" if feito else "Recompensa %s" % Visual.dinheiro(d["recompensa"]), 12, Visual.HUMANO if feito else Visual.CREDITOS)
+	Visual.texto(self, Vector2(112, 540), "Pentests feitos no total: %d" % estado().valor("pentests"), 14, Color("22d3ee"))
+
+
+func botoes_zerosec() -> Array:
+	return [botao(Rect2(112, 560, 240, 44), "O que é pentest?", principal.abrir_licao.bind("pentest_autorizado")), botao(Rect2(364, 560, 240, 44), "Segurança de IoT", principal.abrir_licao.bind("iot"))]
+
+
+func iniciar_ctf() -> void:
+	var indices: Array = range(Textos.QUIZ.size())
+	indices.shuffle()
+	dados["perguntas"] = indices.slice(0, PERGUNTAS_CTF)
+	dados["atual"] = 0
+	dados["acertos"] = 0
+	dados["resposta"] = -1
+
+
+func desenhar_arena() -> void:
+	cabecalho("Arena CTF", "Capture the Flag: %d perguntas por dia, %s por acerto." % [PERGUNTAS_CTF, Visual.dinheiro(250.0)])
+	if not dados.has("perguntas"):
+		if not estado().ctf_disponivel():
+			Visual.texto(self, Vector2(112, 200), "Você já jogou o CTF de hoje. Volte amanhã!", 20, Visual.TEXTO)
+			return
+		iniciar_ctf()
+	if dados.get("terminou", false):
+		Visual.texto(self, Vector2(112, 220), "Fim do CTF! %d de %d flags capturadas." % [dados["acertos"], PERGUNTAS_CTF], 24, Color("f0abfc"))
+		Visual.texto(self, Vector2(112, 256), "Prêmio: %s" % Visual.dinheiro(dados.get("premio", 0.0)), 18, Visual.CREDITOS)
+		return
+	var quiz: Dictionary = Textos.QUIZ[dados["perguntas"][dados["atual"]]]
+	Visual.texto(self, Vector2(112, 170), "FLAG %d/%d" % [dados["atual"] + 1, PERGUNTAS_CTF], 13, Color("f0abfc"))
+	Visual.paragrafo(self, Vector2(112, 206), quiz["pergunta"], 20, Visual.TEXTO, 1040, 1.35, 2)
+	for k in 3:
+		var r := Rect2(112, 270 + k * 70, 1056, 58)
+		var borda := Visual.BORDA_HOVER if r.has_point(mouse) and dados["resposta"] < 0 else Visual.BORDA
+		var fundo := Visual.CARTAO_CLARO
+		if dados["resposta"] >= 0:
+			if k == int(quiz["correta"]):
+				borda = Visual.HUMANO
+				fundo = Visual.com_alfa(Visual.HUMANO, 0.15)
+			elif k == dados["resposta"]:
+				borda = Visual.PERIGO
+				fundo = Visual.com_alfa(Visual.PERIGO, 0.15)
+		Visual.caixa(self, r, fundo, 12, borda, 1)
+		Visual.texto(self, r.position + Vector2(20, 36), "%d   %s" % [k + 1, quiz["opcoes"][k]], 17, Visual.TEXTO)
+	if dados["resposta"] >= 0:
+		Visual.paragrafo(self, Vector2(112, 500), "Por quê: " + String(quiz["explicacao"]), 14, Visual.TEXTO_SUAVE, 820, 1.4, 2)
+
+
+func botoes_arena() -> Array:
+	var lista: Array = []
+	if not dados.has("perguntas") or dados.get("terminou", false):
+		return lista
+	if dados["resposta"] < 0:
+		for k in 3:
+			lista.append({"rect": Rect2(112, 270 + k * 70, 1056, 58), "rotulo": "", "acao": responder_ctf.bind(k), "ativo": true, "estilo": "invisivel"})
+	else:
+		lista.append(botao(Rect2(968, 600, 200, 46), "Próxima flag" if dados["atual"] < PERGUNTAS_CTF - 1 else "Ver resultado", avancar_ctf, true, "principal"))
+	return lista
+
+
+func responder_ctf(k: int) -> void:
+	if dados["resposta"] >= 0:
+		return
+	dados["resposta"] = k
+	var quiz: Dictionary = Textos.QUIZ[dados["perguntas"][dados["atual"]]]
+	if k == int(quiz["correta"]):
+		dados["acertos"] += 1
+
+
+func avancar_ctf() -> void:
+	if dados["atual"] < PERGUNTAS_CTF - 1:
+		dados["atual"] += 1
+		dados["resposta"] = -1
+		return
+	dados["terminou"] = true
+	dados["premio"] = estado().registrar_ctf(dados["acertos"])
+	principal.confete(Vector2(640, 200), 20 + 20 * dados["acertos"])
 
 
 func desenhar_politica() -> void:

@@ -5,26 +5,28 @@ const Textos := preload("res://textos.gd")
 const Visual := preload("res://visual.gd")
 const Estado := preload("res://estado.gd")
 
-const LARGURA := 44
-const ALTURA := 29
+const LARGURA := 64
+const ALTURA := 44
 const MEIO_TILE := Vector2(32, 16)
-const ORIGEM := Vector2(ALTURA * 32 + 120, 230)
-const TAMANHO_TELA := Vector2((LARGURA + ALTURA) * 32 + 240, (LARGURA + ALTURA) * 16 + 300)
-const VELOCIDADE := 4.4
+const ORIGEM := Vector2(ALTURA * 32 + 120, 260)
+const TAMANHO_TELA := Vector2((LARGURA + ALTURA) * 32 + 240, (LARGURA + ALTURA) * 16 + 330)
+const VELOCIDADE := 4.8
 const RAIO_INTERACAO := 1.5
-const RUAS_X := [13, 14, 29, 30]
-const RUAS_Y := [13, 14]
-const CALCADAS_X := [12, 15, 28, 31]
-const CALCADAS_Y := [12, 15]
-const PRACA := Rect2i(16, 21, 12, 8)
-const AREA_STARTUP := Rect2i(38, 16, 5, 4)
+const RUAS_X := [13, 14, 29, 30, 44, 45]
+const RUAS_Y := [13, 14, 29, 30]
+const CALCADAS_X := [12, 15, 28, 31, 43, 46]
+const CALCADAS_Y := [12, 15, 28, 31]
+const PRACA := Rect2i(16, 21, 12, 7)
+const DISTRITO_NEON := Rect2i(47, 0, 17, 28)
 const RET_MINIMAPA := Rect2(1060, 16, 204, 120)
 const RET_BOTAO_MISSOES := Rect2(1064, 630, 196, 72)
 const RET_BOTAO_SEDE := Rect2(856, 630, 196, 72)
 const RET_PROMPT := Rect2(440, 640, 400, 54)
-const QUANTIDADE_NPCS := 14
+const QUANTIDADE_NPCS := 18
+const QUANTIDADE_NPCS_LEVE := 7
 const CONTORNO := Color("1b2233")
 const PAREDES := [Color("efe6d8"), Color("e2dccf"), Color("d9cfc0"), Color("d3dbe6"), Color("ead9c8"), Color("dde6d6"), Color("e6dfe9")]
+const JANELAS_NEON := [Color("22d3ee"), Color("f472b6"), Color("facc15"), Color("a78bfa"), Color("1e2235")]
 
 const LOCAIS := [
 	{"id": "missoes", "tipo": "missoes", "nome": "Central de Missões", "area": Rect2i(1, 1, 6, 3), "altura": 104.0, "cor": Color("facc15"), "parede": Color("fff3c4")},
@@ -48,11 +50,17 @@ const LOCAIS := [
 	{"id": "neuroai", "tipo": "empresa", "area": Rect2i(9, 23, 3, 3), "altura": 128.0},
 	{"id": "sede", "tipo": "sede", "nome": "Sua Sede", "area": Rect2i(17, 16, 9, 4), "altura": 150.0, "cor": Color("2dd4bf"), "parede": Color("bfe7ef")},
 	{"id": "bolsa", "tipo": "bolsa", "nome": "Bolsa Tech", "area": Rect2i(32, 17, 5, 3), "altura": 104.0, "cor": Color("10b981"), "parede": Color("e3efe6")},
-	{"id": "startup", "tipo": "startup", "nome": "Terreno da Startup", "area": Rect2i(38, 16, 5, 4), "altura": 112.0, "cor": Color("a78bfa"), "parede": Color("ece6fb")},
 	{"id": "datacenter", "tipo": "datacenter", "nome": "Data Center da Cidade", "area": Rect2i(32, 23, 11, 4), "altura": 70.0, "cor": Color("38bdf8"), "parede": Color("cdd5df")},
+	{"id": "zerosec", "tipo": "zerosec", "nome": "Hub ZeroSec", "area": Rect2i(48, 2, 6, 4), "altura": 118.0, "cor": Color("22d3ee"), "parede": Color("2b3040")},
+	{"id": "arena", "tipo": "arena", "nome": "Arena CTF", "area": Rect2i(56, 2, 7, 5), "altura": 92.0, "cor": Color("a855f7"), "parede": Color("30294a")},
+	{"id": "res1", "tipo": "decor", "nome": "Residencial Neon", "area": Rect2i(48, 9, 4, 3), "altura": 160.0, "cor": Color("f472b6"), "parede": Color("2e2b3d")},
+	{"id": "res2", "tipo": "decor", "nome": "Torre Pixel", "area": Rect2i(54, 9, 4, 3), "altura": 136.0, "cor": Color("22d3ee"), "parede": Color("272c3c")},
+	{"id": "res3", "tipo": "decor", "nome": "Edifício Matrix", "area": Rect2i(59, 9, 4, 3), "altura": 176.0, "cor": Color("facc15"), "parede": Color("2a2a36")},
+	{"id": "imobiliaria", "tipo": "imobiliaria", "nome": "Imobiliária", "area": Rect2i(25, 32, 3, 3), "altura": 96.0, "cor": Color("f59e0b"), "parede": Color("f5ead6")},
 ]
 
 var principal
+var locais: Array = []
 var jogador := Vector2(21.5, 21.2)
 var direcao := 1
 var caminho: Array = []
@@ -70,6 +78,7 @@ var pet_direcao := 1
 var mouse := Vector2.ZERO
 var ultimo_salvo := 0.0
 var solidos: Dictionary = {}
+var solidos_base: Dictionary = {}
 var astar := AStarGrid2D.new()
 var gerador_npc := RandomNumberGenerator.new()
 var predio_hover := ""
@@ -80,7 +89,7 @@ var camada_rotulos := Node2D.new()
 var camada_hud := Node2D.new()
 var assinatura_rotulos := ""
 var malhas_predios: Dictionary = {}
-var chave_startup := ""
+var chave_cidade := ""
 
 
 func estado():
@@ -93,25 +102,25 @@ func _ready() -> void:
 	astar.cell_size = Vector2(1, 1)
 	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
 	astar.update()
-	for l in LOCAIS:
-		var a: Rect2i = l["area"]
-		for x in range(a.position.x, a.end.x):
-			for y in range(a.position.y, a.end.y):
-				marcar_solido(Vector2i(x, y))
-		var caixa := Rect2(Vector2(a.position), Vector2(a.size))
-		estaticos.append({"tipo": "predio", "local": l, "caixa": caixa})
+	montar_locais()
 	for x in range(21, 23):
 		for y in range(24, 26):
-			marcar_solido(Vector2i(x, y))
+			solidos_base[Vector2i(x, y)] = true
 	estaticos.append({"tipo": "fonte", "caixa": Rect2(21, 24, 2, 2)})
 	for banco in [Vector2i(18, 23), Vector2i(25, 23), Vector2i(18, 27), Vector2i(25, 27)]:
-		marcar_solido(banco)
+		solidos_base[banco] = true
 		estaticos.append({"tipo": "banco", "caixa": Rect2(Vector2(banco), Vector2(1, 1))})
+	for d in Dados.DISPOSITIVOS:
+		var pos: Vector2 = d["pos"]
+		solidos_base[Vector2i(floori(pos.x), floori(pos.y))] = true
+		estaticos.append({"tipo": "dispositivo", "dados": d, "caixa": Rect2(pos - Vector2(0.2, 0.2), Vector2(0.4, 0.4))})
 	criar_arvores()
 	for x in LARGURA:
 		for y in ALTURA:
-			if tipo_tile(x, y) == "calcada" and (x * 3 + y * 7) % 11 == 0 and not perto_de_porta(Vector2i(x, y)):
+			var c := Vector2i(x, y)
+			if tipo_tile(x, y) == "calcada" and (x * 3 + y * 7) % 11 == 0 and not perto_de_porta(c) and not solidos_base.has(c):
 				estaticos.append({"tipo": "poste", "caixa": Rect2(x + 0.42, y + 0.42, 0.16, 0.16)})
+	aplicar_solidos()
 	criar_carros()
 	add_child(camada_rotulos)
 	add_child(camada_hud)
@@ -120,13 +129,64 @@ func _ready() -> void:
 	construir_malhas()
 
 
-func marcar_solido(c: Vector2i) -> void:
-	solidos[c] = true
-	astar.set_point_solid(c, true)
+func terrenos_atuais() -> Dictionary:
+	if estado() == null or estado().perfil.is_empty():
+		return {}
+	return estado().perfil.get("terrenos", {})
+
+
+func montar_locais() -> void:
+	locais = []
+	for l in LOCAIS:
+		locais.append(l)
+	var terrenos := terrenos_atuais()
+	for lote in Dados.LOTES:
+		var c := String(terrenos.get(lote["id"], ""))
+		var l := {"id": lote["id"], "tipo": "lote", "lote": lote["id"], "nome": lote["nome"], "area": lote["area"], "altura": 0.0, "cor": Color("a78bfa"), "parede": Color("ece6fb"), "construcao": c, "comprado": terrenos.has(lote["id"]), "preco": lote["preco"]}
+		if c == "startup":
+			l["id"] = "startup"
+			l["tipo"] = "startup"
+			l["altura"] = 124.0
+		elif Dados.CONSTRUCOES.has(c):
+			var dados: Dictionary = Dados.CONSTRUCOES[c]
+			l["altura"] = dados["altura"]
+			l["cor"] = dados["cor"]
+			l["parede"] = dados["parede"]
+			l["nome"] = dados["nome"]
+		locais.append(l)
+	estaticos = estaticos.filter(func(e): return e["tipo"] != "predio")
+	for l in locais:
+		var a: Rect2i = l["area"]
+		estaticos.append({"tipo": "predio", "local": l, "caixa": Rect2(Vector2(a.position), Vector2(a.size))})
+
+
+func bloqueia(l: Dictionary) -> bool:
+	return l["tipo"] != "lote" or String(l.get("construcao", "")) != ""
+
+
+func aplicar_solidos() -> void:
+	solidos = solidos_base.duplicate()
+	for l in locais:
+		if bloqueia(l):
+			var a: Rect2i = l["area"]
+			for x in range(a.position.x, a.end.x):
+				for y in range(a.position.y, a.end.y):
+					solidos[Vector2i(x, y)] = true
+	astar.fill_solid_region(astar.region, false)
+	for c in solidos:
+		astar.set_point_solid(c, true)
+
+
+func em_lote(c: Vector2i) -> bool:
+	for lote in Dados.LOTES:
+		var a: Rect2i = lote["area"]
+		if a.has_point(c):
+			return true
+	return false
 
 
 func perto_de_porta(c: Vector2i) -> bool:
-	for l in LOCAIS:
+	for l in locais:
 		var p := porta(l)
 		if absf(c.x + 0.5 - p.x) <= 1.6 and c.y >= int(p.y) - 1 and c.y <= int(p.y) + 1:
 			return true
@@ -136,35 +196,55 @@ func perto_de_porta(c: Vector2i) -> bool:
 func criar_arvores() -> void:
 	var gerador := RandomNumberGenerator.new()
 	gerador.seed = 4242
-	var zonas := [Rect2i(40, 6, 4, 6), Rect2i(6, 16, 6, 6), Rect2i(0, 0, 44, 1), Rect2i(0, 27, 13, 2), Rect2i(16, 21, 1, 8), Rect2i(27, 21, 1, 8), Rect2i(0, 12, 1, 3), Rect2i(37, 21, 7, 1)]
+	var zonas := [Rect2i(40, 6, 3, 6), Rect2i(6, 16, 6, 6), Rect2i(0, 0, 44, 1), Rect2i(0, 27, 13, 1), Rect2i(16, 21, 1, 7), Rect2i(27, 21, 1, 7), Rect2i(0, 12, 1, 3), Rect2i(37, 21, 6, 1), Rect2i(0, 43, 64, 1), Rect2i(10, 32, 2, 11), Rect2i(41, 32, 2, 11), Rect2i(25, 36, 3, 7), Rect2i(61, 32, 3, 11), Rect2i(0, 32, 1, 11)]
+	var plantadas: Array = []
 	for zona in zonas:
 		for x in range(zona.position.x, zona.end.x):
 			for y in range(zona.position.y, zona.end.y):
 				var c := Vector2i(x, y)
-				if solidos.has(c) or perto_de_porta(c) or tipo_tile(x, y) == "rua" or tipo_tile(x, y) == "calcada":
+				var tipo := tipo_tile(x, y)
+				if solidos_base.has(c) or perto_de_porta(c) or tipo != "grama" or em_lote(c) or ocupado_por_local(c):
 					continue
 				if gerador.randf() < 0.5:
-					marcar_solido(c)
+					plantadas.append(c)
+					solidos_base[c] = true
 					estaticos.append({"tipo": "arvore", "caixa": Rect2(Vector2(c), Vector2(1, 1)), "escala": gerador.randf_range(0.85, 1.2), "tom": gerador.randi() % 3})
+	aplicar_solidos()
 	var inicio := Vector2i(porta(local_por_id("sede")))
-	for l in LOCAIS:
+	for l in locais:
 		if astar.get_id_path(inicio, Vector2i(porta(l))).is_empty():
-			for e in estaticos.duplicate():
-				if e["tipo"] == "arvore":
-					var c2 := Vector2i(e["caixa"].position)
-					solidos.erase(c2)
-					astar.set_point_solid(c2, false)
-					estaticos.erase(e)
+			for c2 in plantadas:
+				solidos_base.erase(c2)
+			estaticos = estaticos.filter(func(e): return e["tipo"] != "arvore")
+			aplicar_solidos()
 			return
+
+
+func ocupado_por_local(c: Vector2i) -> bool:
+	for l in locais:
+		var a: Rect2i = l["area"]
+		if a.has_point(c):
+			return true
+	return false
 
 
 func criar_carros() -> void:
 	var cores := [Color("ef4444"), Color("3b82f6"), Color("facc15"), Color("f8fafc"), Color("10b981"), Color("f97316"), Color("a855f7")]
-	var faixas := [["y", 13.5, 1], ["y", 14.5, -1], ["y", 29.5, 1], ["y", 30.5, -1], ["x", 13.5, 1], ["x", 14.5, -1]]
-	for i in 9:
+	var faixas := [["y", 13.5, 1], ["y", 14.5, -1], ["y", 29.5, 1], ["y", 30.5, -1], ["x", 13.5, 1], ["x", 14.5, -1], ["y", 44.5, 1], ["y", 45.5, -1], ["x", 29.5, 1], ["x", 30.5, -1]]
+	var quantidade := 6 if graficos_leves() else 14
+	for i in quantidade:
 		var f: Array = faixas[i % faixas.size()]
 		var comprimento: float = ALTURA if f[0] == "y" else LARGURA
 		carros.append({"eixo": f[0], "faixa": f[1], "sentido": f[2], "t": fmod(i * 7.3, comprimento), "comprimento": comprimento, "cor": cores[i % cores.size()], "vel": 2.2 + (i % 3) * 0.5})
+		var anterior = alvo
+		alvo = Malha.new()
+		desenhar_carro(carros[carros.size() - 1], Vector2.ZERO)
+		carros[carros.size() - 1]["malha"] = alvo.gerar()
+		alvo = anterior
+
+
+func graficos_leves() -> bool:
+	return estado() != null and not estado().perfil.is_empty() and estado().perfil.get("graficos_leves", false)
 
 
 func tipo_tile(x: int, y: int) -> String:
@@ -174,9 +254,10 @@ func tipo_tile(x: int, y: int) -> String:
 		return "calcada"
 	if PRACA.has_point(Vector2i(x, y)):
 		return "praca"
-	var startup := AREA_STARTUP
-	if startup.has_point(Vector2i(x, y)):
+	if em_lote(Vector2i(x, y)):
 		return "terra"
+	if DISTRITO_NEON.has_point(Vector2i(x, y)):
+		return "neon"
 	return "grama"
 
 
@@ -194,8 +275,15 @@ func tela_para_mundo(s: Vector2) -> Vector2:
 
 
 func local_por_id(id: String) -> Dictionary:
-	for l in LOCAIS:
+	for l in locais:
 		if l["id"] == id:
+			return l
+	return {}
+
+
+func local_do_lote(id: String) -> Dictionary:
+	for l in locais:
+		if l.get("lote", "") == id:
 			return l
 	return {}
 
@@ -238,6 +326,7 @@ func parede_local(l: Dictionary) -> Color:
 
 
 func preparar() -> void:
+	atualizar_cidade()
 	var pos: Array = estado().perfil.get("mundo", [])
 	jogador = porta(local_por_id("sede")) + Vector2(0, 0.7)
 	if pos.size() == 2:
@@ -257,11 +346,11 @@ func criar_npcs() -> void:
 	var gerador := RandomNumberGenerator.new()
 	gerador.seed = 777
 	gerador_npc.seed = 99
-	for i in QUANTIDADE_NPCS:
+	for i in (QUANTIDADE_NPCS_LEVE if graficos_leves() else QUANTIDADE_NPCS):
 		var feminino := (i + 1) % 2
 		var cabelos: Array = [1, 3, 4, 7] if feminino == 1 else [0, 2, 3, 5, 6]
 		var aparencia := {"corpo": feminino, "pele": gerador.randi() % Dados.CORES_PELE.size(), "cabelo": cabelos[gerador.randi() % cabelos.size()], "cor_cabelo": gerador.randi() % 6, "roupa": gerador.randi() % 3, "cor_roupa": gerador.randi() % Dados.CORES_ROUPA.size(), "olhos": gerador.randi() % 3}
-		var equipados := {"acessorio": ["", "", "oculos_hacker", "headset"][gerador.randi() % 4], "chapeu": ["", "", "bone", "gorro"][gerador.randi() % 4], "roupa": ["", "", "", "capuz", "jaleco", "terno"][gerador.randi() % 6]}
+		var equipados := {"acessorio": ["", "", "oculos_hacker", "headset", "oculos_nerd", "fone_grande", "", "mascara_led"][gerador.randi() % 8], "chapeu": ["", "", "", "bone", "gorro", "bone_tras"][gerador.randi() % 6], "roupa": ["", "", "capuz", "jaleco", "terno", "xadrez", "camiseta_dev", "jaqueta", "capuz_hacker"][gerador.randi() % 9]}
 		var pos := Vector2.ZERO
 		for tentativa in 50:
 			var c := Vector2i(gerador.randi() % LARGURA, gerador.randi() % ALTURA)
@@ -307,6 +396,8 @@ func _process(delta: float) -> void:
 		pet_pos = novo
 	atualizar_camera(delta)
 	atualizar_proximo()
+	if assinatura_cidade() != chave_cidade:
+		atualizar_cidade()
 	atualizar_hover()
 	atualizar_camadas()
 	if not balao.is_empty():
@@ -322,7 +413,7 @@ func _process(delta: float) -> void:
 
 func atualizar_camadas() -> void:
 	camada_rotulos.position = -camera.round()
-	var partes := [predio_hover, estado().nivel(), assinatura_startup()]
+	var partes := [predio_hover, estado().nivel(), assinatura_cidade()]
 	for e in Dados.EMPRESAS:
 		partes.append(estado().eh_dono(e["id"]))
 		partes.append(not estado().obter_operacao(e["id"]).is_empty())
@@ -433,11 +524,18 @@ func atualizar_camera(delta: float) -> void:
 func atualizar_proximo() -> void:
 	proximo = {}
 	var melhor := RAIO_INTERACAO
-	for l in LOCAIS:
+	for l in locais:
+		if l["tipo"] == "decor":
+			continue
 		var d := jogador.distance_to(porta(l))
 		if d < melhor:
 			melhor = d
 			proximo = {"tipo": "local", "local": l}
+	for disp in Dados.DISPOSITIVOS:
+		var d3: float = jogador.distance_to(disp["pos"])
+		if d3 < 1.3 and d3 < melhor:
+			melhor = d3
+			proximo = {"tipo": "dispositivo", "dados": disp}
 	for i in npcs.size():
 		var d2: float = jogador.distance_to(npcs[i]["pos"])
 		if d2 < 1.1 and d2 < melhor:
@@ -458,7 +556,7 @@ func silhueta(l: Dictionary) -> PackedVector2Array:
 func predio_em(tela_mundo: Vector2) -> Dictionary:
 	var achado: Dictionary = {}
 	var melhor := -INF
-	for l in LOCAIS:
+	for l in locais:
 		if Geometry2D.is_point_in_polygon(tela_mundo, silhueta(l)):
 			var a: Rect2i = l["area"]
 			var profundidade := float(a.end.x + a.end.y)
@@ -482,6 +580,11 @@ func texto_prompt() -> String:
 		return ""
 	if proximo["tipo"] == "npc":
 		return "Conversar com %s" % npcs[proximo["indice"]]["nome"]
+	if proximo["tipo"] == "dispositivo":
+		var disp: Dictionary = proximo["dados"]
+		if estado().pentest_feito(disp["id"]):
+			return "%s: já testado hoje" % disp["nome"]
+		return "Pentest autorizado: %s" % disp["nome"]
 	var l: Dictionary = proximo["local"]
 	match l["tipo"]:
 		"empresa":
@@ -489,7 +592,13 @@ func texto_prompt() -> String:
 		"datacenter":
 			return "Visitar o Data Center"
 		"startup":
-			return "Abrir %s" % nome_local(l) if not estado().perfil.get("startup", {}).is_empty() else "Fundar sua startup"
+			return "Abrir %s" % nome_local(l)
+		"lote":
+			if not l["comprado"]:
+				return "%s à venda: %s" % [l["nome"], Visual.dinheiro(l["preco"])]
+			if String(l["construcao"]) == "":
+				return "Construir no seu terreno"
+			return "Entrar: %s" % nome_local(l)
 	return "Entrar: %s" % nome_local(l)
 
 
@@ -505,6 +614,10 @@ func interagir(destino: Dictionary) -> void:
 		balao = {"indice": destino["indice"], "texto": Textos.DICAS_NPC[n["dica"]], "tempo": 6.0}
 		estado().somar("conversas")
 		return
+	if destino["tipo"] == "dispositivo":
+		guardar_posicao()
+		principal.abrir_painel("pentest", {"id": destino["dados"]["id"]})
+		return
 	var l: Dictionary = destino["local"]
 	guardar_posicao()
 	estado().somar("visitou_%s" % l["tipo"])
@@ -513,6 +626,10 @@ func interagir(destino: Dictionary) -> void:
 			principal.abrir_painel("empresa", {"id": l["id"]})
 		"datacenter":
 			principal.avisar("Data Center: aqui ficam as torres de verdade. Energia redundante, refrigeração e backups fora do prédio.", Visual.DESTAQUE, "backup")
+		"lote":
+			principal.abrir_painel("terreno", {"id": l["lote"]})
+		"decor":
+			principal.avisar("%s: prédio residencial do Distrito Neon." % l["nome"], Visual.DESTAQUE)
 		_:
 			principal.abrir_painel(l["tipo"], {})
 
@@ -629,19 +746,33 @@ func construir_malhas() -> void:
 	construir_predios()
 
 
+func atualizar_cidade() -> void:
+	montar_locais()
+	aplicar_solidos()
+	construir_predios()
+	if not livre(jogador):
+		for l in locais:
+			var a: Rect2i = l["area"]
+			if a.has_point(Vector2i(floori(jogador.x), floori(jogador.y))):
+				jogador = porta(l)
+		caminho = []
+
+
 func construir_predios() -> void:
 	malhas_predios = {}
-	for l in LOCAIS:
+	for l in locais:
 		alvo = Malha.new()
 		desenhar_predio_base(l)
 		malhas_predios[l["id"]] = alvo.gerar()
 	alvo = self
-	chave_startup = assinatura_startup()
+	chave_cidade = assinatura_cidade()
 	construir_minimapa()
 
 
-func assinatura_startup() -> String:
-	return JSON.stringify(estado().perfil.get("startup", {})) if estado() != null and not estado().perfil.is_empty() else ""
+func assinatura_cidade() -> String:
+	if estado() == null or estado().perfil.is_empty():
+		return ""
+	return JSON.stringify([estado().perfil.get("startup", {}), estado().perfil.get("terrenos", {})])
 
 
 func desenhar_chao() -> void:
@@ -668,6 +799,8 @@ func desenhar_chao() -> void:
 					cor = Color("ecdcb4") if par else Color("e2cf9f")
 				"terra":
 					cor = Color("b88a55") if par else Color("ad7f4b")
+				"neon":
+					cor = Color("2b3046") if par else Color("262a3e")
 				_:
 					cor = Color("6fc04a") if par else Color("66b743")
 			var pontos := losango_tile(x, y)
@@ -677,6 +810,8 @@ func desenhar_chao() -> void:
 			elif tipo == "grama" and (x * 7 + y * 13) % 9 == 0:
 				alvo.draw_line(centro + Vector2(-6, 2), centro + Vector2(-4, -3), Color("4f9a30"), 2.0)
 				alvo.draw_line(centro + Vector2(3, 3), centro + Vector2(5, -2), Color("4f9a30"), 2.0)
+			elif tipo == "neon" and (x + y * 3) % 7 == 0:
+				alvo.draw_polyline(PackedVector2Array([pontos[3], pontos[0], pontos[1]]), Color(0.13, 0.83, 0.93, 0.35), 1.0)
 			elif tipo == "rua":
 				desenhar_faixas(x, y)
 
@@ -723,8 +858,6 @@ func antes(a: Dictionary, b: Dictionary) -> bool:
 
 
 func desenhar_objetos() -> void:
-	if assinatura_startup() != chave_startup:
-		construir_predios()
 	var lista: Array = []
 	for e in estaticos:
 		var r: Rect2 = e["caixa"]
@@ -769,17 +902,48 @@ func desenhar_item(item: Dictionary) -> void:
 				draw_mesh(item["malha"], null)
 			"banco":
 				draw_mesh(item["malha"], null)
+			"dispositivo":
+				desenhar_dispositivo(item["dados"])
 			"fonte":
 				desenhar_fonte()
 			"carro":
 				draw_mesh(item["carro"]["malha"], null, Transform2D(0.0, iso(item["pos"]) - iso(Vector2.ZERO)))
 			"npc":
 				var n: Dictionary = npcs[item["indice"]]
-				Visual.avatar(self, iso(n["pos"]), 1.05, n["aparencia"], n["equipados"], tempo + item["indice"], n["andando"], n["direcao"])
+				Visual.avatar(self, iso(n["pos"]), 1.0, n["aparencia"], n["equipados"], tempo + item["indice"], n["andando"], n["direcao"])
 			"pet":
 				Visual.pet(self, iso(pet_pos), estado().perfil["equipados"]["pet"], tempo, pet_direcao)
 			"jogador":
-				Visual.avatar(self, iso(jogador), 1.15, estado().perfil.get("avatar", {}), estado().perfil.get("equipados", {}), tempo, andando, direcao)
+				Visual.avatar(self, iso(jogador), 1.0, estado().perfil.get("avatar", {}), estado().perfil.get("equipados", {}), tempo, andando, direcao)
+
+
+func desenhar_dispositivo(d: Dictionary) -> void:
+	var c := iso(d["pos"])
+	var feito: bool = estado().pentest_feito(d["id"])
+	var luz := Color("34d399") if feito else (Color("ef4444") if int(tempo * 2.0) % 2 == 0 else Color("7f1d1d"))
+	Visual.elipse(self, c + Vector2(3, 1), Vector2(9, 4), Color(0, 0, 0, 0.22))
+	match d["tipo"]:
+		"camera":
+			draw_line(c, c + Vector2(0, -46), CONTORNO, 4.0)
+			draw_line(c, c + Vector2(0, -46), Color("64748b"), 2.0)
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-2, -50), c + Vector2(14, -54), c + Vector2(16, -46), c + Vector2(0, -42)]), Color("e2e8f0"))
+			draw_polyline(PackedVector2Array([c + Vector2(-2, -50), c + Vector2(14, -54), c + Vector2(16, -46), c + Vector2(0, -42), c + Vector2(-2, -50)]), CONTORNO, 1.0)
+			draw_circle(c + Vector2(14, -50), 2.4, Color("111827"), true, -1.0, true)
+			draw_circle(c + Vector2(2, -47), 1.8, luz, true, -1.0, true)
+		"atm":
+			caixa_iso(d["pos"] - Vector2(0.3, 0.2), 0.6, 0.4, 30.0, Color("475569"))
+			var tela := iso(d["pos"] + Vector2(-0.2, 0.2)) + Vector2(0, -24)
+			draw_rect(Rect2(tela - Vector2(5, 3), Vector2(10, 7)), Color("38bdf8"))
+			draw_circle(tela + Vector2(0, -9), 1.8, luz, true, -1.0, true)
+		_:
+			draw_line(c, c + Vector2(0, -50), CONTORNO, 4.0)
+			draw_line(c, c + Vector2(0, -50), Color("64748b"), 2.0)
+			Visual.caixa(self, Rect2(c + Vector2(-6, -66), Vector2(12, 24)), Color("1f2937"), 3, CONTORNO, 1)
+			var fase := int(tempo) % 3
+			draw_circle(c + Vector2(0, -60), 2.6, Color("ef4444") if fase == 0 else Color("3f1515"), true, -1.0, true)
+			draw_circle(c + Vector2(0, -54), 2.6, Color("facc15") if fase == 1 else Color("3d3410"), true, -1.0, true)
+			draw_circle(c + Vector2(0, -48), 2.6, Color("22c55e") if fase == 2 else Color("10301c"), true, -1.0, true)
+			draw_circle(c + Vector2(6, -66), 1.8, luz, true, -1.0, true)
 
 
 func ponto_face_esquerda(a: Rect2i, u: float, v: float) -> Vector2:
@@ -825,8 +989,8 @@ func caixa_iso(base: Vector2, w: float, d: float, h: float, cor: Color, contorno
 func desenhar_predio_base(l: Dictionary) -> void:
 	var a: Rect2i = l["area"]
 	var tipo: String = l["tipo"]
-	if tipo == "startup" and estado().perfil.get("startup", {}).is_empty():
-		desenhar_terreno(a)
+	if tipo == "lote" and String(l["construcao"]) == "":
+		desenhar_terreno(a, l["comprado"])
 		return
 	var h: float = l["altura"]
 	var u := Vector2(0, -h)
@@ -845,10 +1009,11 @@ func desenhar_predio_base(l: Dictionary) -> void:
 	desenhar_janelas(l, a, h, tipo)
 	alvo.draw_colored_polygon(quad_esquerda(a, 0, a.size.x, h - 9, h), acento)
 	alvo.draw_colored_polygon(quad_direita(a, 0, a.size.y, h - 9, h), acento.darkened(0.22))
-	alvo.draw_colored_polygon(PackedVector2Array([topo + u, direita + u, baixo + u, esquerda + u]), Color("a3aab8") if tipo != "beco" else Color("2a2d36"))
+	var escuro := parede.get_luminance() < 0.35
+	alvo.draw_colored_polygon(PackedVector2Array([topo + u, direita + u, baixo + u, esquerda + u]), Color("2a2d36") if escuro else Color("a3aab8"))
 	var m := 0.16
 	var interno := PackedVector2Array([iso(Vector2(a.position.x + m, a.position.y + m)) + u, iso(Vector2(a.end.x - m, a.position.y + m)) + u, iso(Vector2(a.end.x - m, a.end.y - m)) + u, iso(Vector2(a.position.x + m, a.end.y - m)) + u])
-	alvo.draw_colored_polygon(interno, Color("8b93a3") if tipo != "beco" else Color("1f2229"))
+	alvo.draw_colored_polygon(interno, Color("1f2229") if escuro else Color("8b93a3"))
 	desenhar_telhado_base(a, h, tipo)
 	desenhar_porta(a, acento, tipo)
 	alvo.draw_polyline(PackedVector2Array([esquerda, baixo, direita, direita + u, topo + u, esquerda + u, esquerda]), CONTORNO, 1.2)
@@ -859,8 +1024,8 @@ func desenhar_predio_base(l: Dictionary) -> void:
 func desenhar_predio_extras(l: Dictionary) -> void:
 	var a: Rect2i = l["area"]
 	var tipo: String = l["tipo"]
-	if tipo == "startup" and estado().perfil.get("startup", {}).is_empty():
-		desenhar_placa_terreno(a)
+	if tipo == "lote" and String(l["construcao"]) == "":
+		desenhar_placa_terreno(l)
 		return
 	var h: float = l["altura"]
 	var acento := cor_local(l)
@@ -895,11 +1060,33 @@ func desenhar_predio_extras(l: Dictionary) -> void:
 			var balanco := sin(tempo * 4.0) * 3.0
 			draw_colored_polygon(PackedVector2Array([c2 + Vector2(0, -44), c2 + Vector2(26, -38 + balanco), c2 + Vector2(0, -30)]), acento)
 			Visual.texto(self, iso(Vector2(a.position.x + 6.8, a.position.y + 1.6)) + Vector2(-22, -h + 6), "H", 14, Color("e2e8f0"), HORIZONTAL_ALIGNMENT_CENTER, 44)
+		"zerosec":
+			var pulso := 0.55 + 0.45 * sin(tempo * 3.0)
+			var c4 := iso(centro_area(a)) + Vector2(0, -h - 26)
+			draw_circle(c4, 19.0, Color(0.13, 0.83, 0.93, 0.18 * pulso), true, -1.0, true)
+			draw_arc(c4, 15.0, 0.0, TAU, 28, Visual.com_alfa(Color("22d3ee"), 0.6 + 0.4 * pulso), 3.0, true)
+			Visual.texto(self, c4 + Vector2(-30, 5), "0x5EC", 13, Visual.com_alfa(Color("22d3ee"), 0.7 + 0.3 * pulso), HORIZONTAL_ALIGNMENT_CENTER, 60)
+			draw_colored_polygon(quad_esquerda(a, 0, a.size.x, h - 9, h - 6), Visual.com_alfa(Color("22d3ee"), pulso))
+		"arena":
+			var tela := quad_esquerda(a, 0.6, a.size.x - 0.6, 30, h - 18)
+			draw_colored_polygon(tela, Color("0b0b14"))
+			for k in 8:
+				var altura_barra := 8.0 + 24.0 * absf(sin(tempo * 2.5 + k * 0.9))
+				var u5 := 0.9 + k * (a.size.x - 1.8) / 8.0
+				draw_colored_polygon(quad_esquerda(a, u5, u5 + 0.35, 34, 34 + altura_barra), Color("a855f7") if k % 2 == 0 else Color("22d3ee"))
+			Visual.texto(self, iso(centro_area(a)) + Vector2(-40, -h - 12), "CTF LIVE", 14, Visual.com_alfa(Color("f0abfc"), 0.6 + 0.4 * sin(tempo * 5.0)), HORIZONTAL_ALIGNMENT_CENTER, 80)
+		"decor":
+			var piscar2 := int(tempo * 1.5 + a.position.x) % 3 != 0
+			var u6 := 0.25
+			draw_colored_polygon(quad_esquerda(a, u6, u6 + 0.2, 30, h - 14), Visual.com_alfa(acento, 0.9 if piscar2 else 0.35))
+			var topo2 := iso(Vector2(a.position.x + 0.6, a.position.y + 0.6)) + Vector2(0, -h)
+			draw_line(topo2, topo2 + Vector2(0, -22), Color("475569"), 2.0)
+			draw_circle(topo2 + Vector2(0, -24), 3.0, Color("ef4444") if piscar2 else Color("7f1d1d"), true, -1.0, true)
 		"academia":
 			var c3 := iso(centro_area(a)) + Vector2(0, -h)
 			draw_line(c3, c3 + Vector2(0, -36), Color("475569"), 2.0)
 			draw_colored_polygon(PackedVector2Array([c3 + Vector2(0, -36), c3 + Vector2(22, -31 + sin(tempo * 5.0) * 2.0), c3 + Vector2(0, -26)]), Color("3b82f6"))
-		"empresa", "startup":
+		"empresa", "startup", "lote":
 			if h > 120.0:
 				var antena := iso(Vector2(a.position.x + 0.8, a.position.y + 0.8)) + Vector2(0, -h)
 				var piscar := int(tempo * 2.0) % 2 == 0
@@ -911,6 +1098,7 @@ func desenhar_predio_extras(l: Dictionary) -> void:
 
 
 func desenhar_janelas(l: Dictionary, a: Rect2i, h: float, tipo: String) -> void:
+	var neon: bool = parede_local(l).get_luminance() < 0.35 and tipo != "beco"
 	var vidro := Color("8fd3f4")
 	var vidro_escuro := Color("5fa9d1")
 	var espaco := 22.0
@@ -935,11 +1123,14 @@ func desenhar_janelas(l: Dictionary, a: Rect2i, h: float, tipo: String) -> void:
 		for k in int(a.size.x * 2):
 			var u1 := 0.18 + k * 0.5
 			var aceso := (absi(hash(l["id"])) + k * 7 + andar * 3) % 6 != 0
-			alvo.draw_colored_polygon(quad_esquerda(a, u1, u1 + 0.3, v, v + alto), vidro if aceso else vidro_escuro.darkened(0.2))
+			var cor_janela: Color = vidro if aceso else vidro_escuro.darkened(0.2)
+			if neon:
+				cor_janela = JANELAS_NEON[(absi(hash(l["id"])) + k * 3 + andar * 5) % JANELAS_NEON.size()]
+			alvo.draw_colored_polygon(quad_esquerda(a, u1, u1 + 0.3, v, v + alto), cor_janela)
 			alvo.draw_line(ponto_face_esquerda(a, u1 + 0.04, v + alto - 2), ponto_face_esquerda(a, u1 + 0.14, v + alto - 2), Color(1, 1, 1, 0.7), 1.0)
 		for k in int(a.size.y * 2):
 			var s1 := 0.18 + k * 0.5
-			alvo.draw_colored_polygon(quad_direita(a, s1, s1 + 0.3, v, v + alto), vidro_escuro)
+			alvo.draw_colored_polygon(quad_direita(a, s1, s1 + 0.3, v, v + alto), JANELAS_NEON[(absi(hash(l["id"])) + k * 5 + andar * 3) % JANELAS_NEON.size()].darkened(0.3) if neon else vidro_escuro)
 		v += espaco
 		andar += 1
 	if tipo == "bolsa":
@@ -979,15 +1170,15 @@ func desenhar_telhado_base(a: Rect2i, h: float, tipo: String) -> void:
 				elipse_em(iso(base + Vector2(0.6, 0.6)) + Vector2(0, -h - 12), Vector2(13, 6.5), Color("475569"))
 		"sede":
 			elipse_em(iso(Vector2(a.position.x + 6.8, a.position.y + 1.6)) + Vector2(0, -h), Vector2(22, 11), Color("475569"))
-		"empresa", "startup":
+		"empresa", "startup", "lote":
 			caixa_iso(Vector2(a.end.x - 1.1, a.position.y + 0.4), 0.7, 0.7, 10.0, Color("cbd5e1"), true, h)
 			if h > 120.0:
 				var antena := iso(Vector2(a.position.x + 0.8, a.position.y + 0.8)) + Vector2(0, -h)
 				alvo.draw_line(antena, antena + Vector2(0, -30), Color("64748b"), 2.0)
 
 
-func desenhar_terreno(a: Rect2i) -> void:
-	var cerca := Color("8b5a2b")
+func desenhar_terreno(a: Rect2i, comprado: bool) -> void:
+	var cerca := Color("8b5a2b") if not comprado else Color("a78bfa")
 	var cantos := [Vector2(a.position), Vector2(a.end.x, a.position.y), Vector2(a.end), Vector2(a.position.x, a.end.y)]
 	for i in 4:
 		var de: Vector2 = cantos[i]
@@ -995,24 +1186,34 @@ func desenhar_terreno(a: Rect2i) -> void:
 		var passos := int(de.distance_to(ate) * 2)
 		for k in passos + 1:
 			var p := iso(de.lerp(ate, float(k) / passos))
-			alvo.draw_line(p, p + Vector2(0, -14), cerca, 2.0)
-		alvo.draw_line(iso(de) + Vector2(0, -10), iso(ate) + Vector2(0, -10), cerca.lightened(0.15), 2.0)
-		alvo.draw_line(iso(de) + Vector2(0, -5), iso(ate) + Vector2(0, -5), cerca.lightened(0.15), 2.0)
-	caixa_iso(Vector2(a.position.x + 0.5, a.position.y + 0.5), 0.6, 0.6, 14.0, Color("a16207"))
-	caixa_iso(Vector2(a.position.x + 1.3, a.position.y + 0.4), 0.5, 0.5, 10.0, Color("ca8a04"))
+			alvo.draw_line(p, p + Vector2(0, -14), cerca.darkened(0.2), 2.0)
+		alvo.draw_line(iso(de) + Vector2(0, -10), iso(ate) + Vector2(0, -10), cerca, 2.0)
+		alvo.draw_line(iso(de) + Vector2(0, -5), iso(ate) + Vector2(0, -5), cerca, 2.0)
+	if comprado:
+		caixa_iso(Vector2(a.position.x + 0.5, a.position.y + 0.5), 0.8, 0.6, 12.0, Color("f59e0b"))
+		caixa_iso(Vector2(a.end.x - 1.2, a.position.y + 0.4), 0.6, 0.6, 18.0, Color("94a3b8"))
+	else:
+		caixa_iso(Vector2(a.position.x + 0.5, a.position.y + 0.5), 0.6, 0.6, 14.0, Color("a16207"))
+		caixa_iso(Vector2(a.position.x + 1.3, a.position.y + 0.4), 0.5, 0.5, 10.0, Color("ca8a04"))
 	var placa := iso(centro_area(a) + Vector2(0, 0.8))
 	alvo.draw_line(placa + Vector2(-30, 0), placa + Vector2(-30, -40), Color("6b4423"), 3.0)
 	alvo.draw_line(placa + Vector2(30, 0), placa + Vector2(30, -40), Color("6b4423"), 3.0)
 
 
-func desenhar_placa_terreno(a: Rect2i) -> void:
+func desenhar_placa_terreno(l: Dictionary) -> void:
+	var a: Rect2i = l["area"]
 	var placa := iso(centro_area(a) + Vector2(0, 0.8))
-	var r := Rect2(placa + Vector2(-62, -76), Vector2(124, 42))
-	Visual.caixa(self, r, Color("fef3c7"), 6, Color("92400e"), 2)
-	Visual.texto(self, r.position + Vector2(0, 18), "TERRENO", 13, Color("78350f"), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
-	Visual.texto(self, r.position + Vector2(0, 34), "funde sua startup", 11, Color("92400e"), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
-	if predio_hover == "startup":
-		var contorno := silhueta(local_por_id("startup"))
+	var r := Rect2(placa + Vector2(-66, -78), Vector2(132, 44))
+	if l["comprado"]:
+		Visual.caixa(self, r, Color("ede9fe"), 6, Color("6d28d9"), 2)
+		Visual.texto(self, r.position + Vector2(0, 18), "SEU TERRENO", 13, Color("4c1d95"), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		Visual.texto(self, r.position + Vector2(0, 35), "toque para construir", 11, Color("5b21b6"), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	else:
+		Visual.caixa(self, r, Color("fef3c7"), 6, Color("92400e"), 2)
+		Visual.texto(self, r.position + Vector2(0, 18), "À VENDA", 13, Color("78350f"), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+		Visual.texto(self, r.position + Vector2(0, 35), Visual.dinheiro(l["preco"]), 12, Color("92400e"), HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+	if predio_hover == l["id"]:
+		var contorno := silhueta(l)
 		contorno.append(contorno[0])
 		draw_polyline(contorno, Color("a78bfa"), 3.0)
 
@@ -1076,10 +1277,10 @@ func desenhar_carro(c: Dictionary, p: Vector2) -> void:
 
 
 func desenhar_rotulos_fixos(ci: CanvasItem) -> void:
-	for l in LOCAIS:
+	for l in locais:
 		var a: Rect2i = l["area"]
 		var h: float = l["altura"]
-		if l["tipo"] == "startup" and estado().perfil.get("startup", {}).is_empty():
+		if l["tipo"] == "lote" and String(l["construcao"]) == "":
 			continue
 		var ancora := iso(centro_area(a)) + Vector2(0, -h - 22)
 		if l["tipo"] == "missoes":
@@ -1122,7 +1323,7 @@ func desenhar_rotulos_fixos(ci: CanvasItem) -> void:
 
 
 func desenhar_rotulos(ci: CanvasItem) -> void:
-	for l in LOCAIS:
+	for l in locais:
 		if l["tipo"] == "missoes" and estado().quantidade_prontas() > 0:
 			var a2: Rect2i = l["area"]
 			var p := iso(centro_area(a2)) + Vector2(42, -l["altura"] - 70 + sin(tempo * 4.0) * 5.0)
@@ -1157,7 +1358,7 @@ func desenhar_hud(ci: CanvasItem) -> void:
 	Visual.caixa(ci, cartao, Visual.com_alfa(Visual.CARTAO, 0.94), 16, Visual.BORDA, 1, 10)
 	Visual.caixa(ci, Rect2(28, 26, 70, 72), Color("3b6fb6"), 12)
 	Visual.caixa(ci, Rect2(28, 74, 70, 24), Color("5c9e3c"), 0)
-	Visual.avatar(ci, Vector2(63, 96), 1.05, p.get("avatar", {}), p.get("equipados", {}), tempo, false)
+	Visual.avatar(ci, Vector2(63, 96), 1.0, p.get("avatar", {}), p.get("equipados", {}), tempo, false)
 	ci.draw_rect(Rect2(28, 98, 70, 12), Visual.com_alfa(Visual.CARTAO, 0.94))
 	Visual.texto(ci, Vector2(110, 44), p.get("nome", ""), 17, Visual.TEXTO)
 	Visual.texto(ci, Vector2(110, 64), "%s  ·  nível %d" % [estado().titulo(), estado().nivel() + 1], 12, Visual.DESTAQUE)
@@ -1213,12 +1414,14 @@ func quad_mini(a: Vector2, b: Vector2) -> PackedVector2Array:
 func construir_minimapa() -> void:
 	alvo = Malha.new()
 	alvo.draw_colored_polygon(quad_mini(Vector2.ZERO, Vector2(LARGURA, ALTURA)), Color("5fae3c"))
-	for x in [13, 29]:
+	alvo.draw_colored_polygon(quad_mini(Vector2(DISTRITO_NEON.position), Vector2(DISTRITO_NEON.end)), Color("2b3045"))
+	for x in [13, 29, 44]:
 		alvo.draw_colored_polygon(quad_mini(Vector2(x, 0), Vector2(x + 2, ALTURA)), Color("4a5061"))
-	alvo.draw_colored_polygon(quad_mini(Vector2(0, 13), Vector2(LARGURA, 15)), Color("4a5061"))
-	for l in LOCAIS:
+	for y in [13, 29]:
+		alvo.draw_colored_polygon(quad_mini(Vector2(0, y), Vector2(LARGURA, y + 2)), Color("4a5061"))
+	for l in locais:
 		var a: Rect2i = l["area"]
-		alvo.draw_colored_polygon(quad_mini(Vector2(a.position), Vector2(a.end)), cor_local(l))
+		alvo.draw_colored_polygon(quad_mini(Vector2(a.position), Vector2(a.end)), Color("b88a55") if l["tipo"] == "lote" and String(l["construcao"]) == "" else cor_local(l))
 	malha_minimapa = alvo.gerar()
 	alvo = self
 
