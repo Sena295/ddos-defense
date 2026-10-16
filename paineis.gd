@@ -188,6 +188,8 @@ func botoes() -> Array:
 			return botoes_pentest()
 		"zerosec":
 			return botoes_zerosec()
+		"propostas":
+			return botoes_propostas()
 		"arena":
 			return botoes_arena()
 		"missoes":
@@ -250,6 +252,8 @@ func _draw() -> void:
 			desenhar_pentest()
 		"zerosec":
 			desenhar_zerosec()
+		"propostas":
+			desenhar_propostas()
 		"arena":
 			desenhar_arena()
 		"missoes":
@@ -1277,6 +1281,10 @@ func dispositivo(id: String) -> Dictionary:
 func iniciar_pentest() -> void:
 	var gerador := RandomNumberGenerator.new()
 	gerador.randomize()
+	var contrato: bool = dados.has("empresa")
+	var oferta: Dictionary = Dados.PROPOSTAS_AUDITORIA[int(dados["proposta"])] if contrato else {}
+	var quantidade: int = int(oferta["alvo"]) if contrato else TAMANHO_ALVO
+	var limite: float = float(oferta["tempo"]) if contrato else TEMPO_PENTEST
 	var matriz: Array = []
 	for i in TAMANHO_MATRIZ:
 		var linha: Array = []
@@ -1289,7 +1297,7 @@ func iniciar_pentest() -> void:
 	var por_linha := true
 	var usados := {}
 	var solucao: Array = []
-	for k in TAMANHO_ALVO:
+	for k in quantidade:
 		var opcoes: Array = []
 		for j in TAMANHO_MATRIZ:
 			var celula := Vector2i(linha_atual, j) if por_linha else Vector2i(j, coluna_atual)
@@ -1310,7 +1318,8 @@ func iniciar_pentest() -> void:
 	dados["por_linha"] = true
 	dados["linha"] = 0
 	dados["coluna"] = 0
-	dados["tempo"] = TEMPO_PENTEST
+	dados["tempo_total"] = limite
+	dados["tempo"] = limite
 	dados["fase"] = "jogando"
 
 
@@ -1346,6 +1355,14 @@ func concluir_pentest(sucesso: bool) -> void:
 	dados["fase"] = "sucesso" if sucesso else "falha"
 	if not sucesso:
 		return
+	if dados.has("empresa"):
+		var id: String = dados["empresa"]
+		var premio: float = estado().concluir_auditoria(id, int(dados["proposta"]))
+		dados["pago"] = premio > 0.0
+		dados["premio"] = premio
+		if premio > 0.0:
+			principal.confete(Vector2(640, 200), 70)
+		return
 	var d := dispositivo(dados.get("id", ""))
 	if estado().registrar_pentest(d["id"], float(d["recompensa"])):
 		dados["pago"] = true
@@ -1354,13 +1371,16 @@ func concluir_pentest(sucesso: bool) -> void:
 
 
 func desenhar_pentest() -> void:
-	var d := dispositivo(dados.get("id", ""))
+	var contrato: bool = dados.has("empresa")
+	var id: String = dados.get("empresa", "") if contrato else dados.get("id", "")
+	var d: Dictionary = Dados.AUDITORIAS.get(id, {}) if contrato else dispositivo(id)
 	if d.is_empty():
 		return
 	if not dados.has("matriz"):
 		iniciar_pentest()
-	Visual.texto(self, Vector2(112, 94), "Pentest autorizado: %s" % d["nome"], 26, Color("22d3ee"))
-	Visual.texto(self, Vector2(112, 122), "A prefeitura contratou a ZeroSec. Ache a falha antes dos criminosos e reporte ao dono.", 14, Visual.TEXTO_SUAVE)
+	var nome: String = Dados.empresa_por_id(id)["nome"] if contrato else d["nome"]
+	Visual.texto(self, Vector2(112, 94), "Auditoria: %s" % nome if contrato else "Pentest autorizado: %s" % nome, 26, Color("22d3ee"))
+	Visual.texto(self, Vector2(112, 122), "Escopo aprovado: %s. Proposta de %s." % [d["area"], Visual.dinheiro(Dados.PROPOSTAS_AUDITORIA[int(dados["proposta"])]["valor"])] if contrato else "A prefeitura contratou a ZeroSec. Ache a falha antes dos criminosos e reporte ao dono.", 14, Visual.TEXTO_SUAVE)
 	var fase: String = dados["fase"]
 	var matriz: Array = dados["matriz"]
 	Visual.texto(self, Vector2(132, 210), "MATRIZ DE ACESSO", 12, Color("22d3ee"))
@@ -1390,13 +1410,13 @@ func desenhar_pentest() -> void:
 			Visual.texto(self, r3.position + Vector2(0, 33), buffer[k], 20, Visual.TEXTO, HORIZONTAL_ALIGNMENT_CENTER, r3.size.x)
 	var trilho := Rect2(x2, 396, 440, 8)
 	Visual.caixa(self, trilho, Visual.LINHA, 4)
-	Visual.caixa(self, Rect2(trilho.position, Vector2(trilho.size.x * clampf(dados["tempo"] / TEMPO_PENTEST, 0.0, 1.0), 8)), Color("22d3ee") if dados["tempo"] > 8.0 else Visual.PERIGO, 4)
+	Visual.caixa(self, Rect2(trilho.position, Vector2(trilho.size.x * clampf(dados["tempo"] / dados["tempo_total"], 0.0, 1.0), 8)), Color("22d3ee") if dados["tempo"] > 8.0 else Visual.PERIGO, 4)
 	Visual.paragrafo(self, Vector2(x2, 430), "Escolha códigos alternando linha e coluna. Comece pela linha de cima. Monte a sequência da falha dentro do buffer antes do tempo acabar.", 13, Visual.TEXTO_SUAVE, 560, 1.45, 3)
 	if fase == "sucesso":
-		Visual.texto(self, Vector2(x2, 520), "Acesso confirmado! Vulnerabilidade documentada." if dados.get("pago", false) else "Acesso confirmado! (este aparelho já foi pago hoje)", 17, Visual.HUMANO)
-		Visual.paragrafo(self, Vector2(x2, 548), "No mundo real: senha padrão e sistema desatualizado em aparelhos IoT são a porta de entrada favorita. Relatório enviado para o dono corrigir.", 13, Visual.TEXTO_SUAVE, 560, 1.4, 3)
+		Visual.texto(self, Vector2(x2, 520), "Relatório entregue: +%s" % Visual.dinheiro(dados.get("premio", 0.0)) if contrato else ("Acesso confirmado! Vulnerabilidade documentada." if dados.get("pago", false) else "Acesso confirmado! (este aparelho já foi pago hoje)"), 17, Visual.HUMANO)
+		Visual.paragrafo(self, Vector2(x2, 548), "Correção: " + String(d["correcao"]) if contrato else "No mundo real: senha padrão e sistema desatualizado em aparelhos IoT são a porta de entrada favorita. Relatório enviado para o dono corrigir.", 13, Visual.TEXTO_SUAVE, 560, 1.4, 3)
 	elif fase == "falha":
-		Visual.texto(self, Vector2(x2, 520), "O alarme de intrusão disparou. Tente de novo.", 17, Visual.PERIGO)
+		Visual.texto(self, Vector2(x2, 520), "O alarme disparou. A empresa só aceita outra tentativa amanhã." if contrato else "O alarme de intrusão disparou. Tente de novo.", 17, Visual.PERIGO)
 
 
 func botoes_pentest() -> Array:
@@ -1407,10 +1427,13 @@ func botoes_pentest() -> Array:
 		for j in TAMANHO_MATRIZ:
 			if celula_ativa(i, j):
 				lista.append({"rect": retangulo_celula(i, j), "rotulo": "", "acao": escolher_celula.bind(i, j), "ativo": true, "estilo": "invisivel"})
-	if dados["fase"] == "falha":
+	if dados["fase"] == "falha" and not dados.has("empresa"):
 		lista.append(botao(Rect2(560, 560, 200, 44), "Tentar de novo", iniciar_pentest, true, "principal"))
+	if dados["fase"] == "falha" and dados.has("empresa"):
+		lista.append(botao(Rect2(560, 610, 240, 44), "Voltar aos contratos", abrir.bind("propostas", {}), true, "principal"))
 	if dados["fase"] == "sucesso":
-		lista.append(botao(Rect2(560, 610, 200, 44), "Entender", principal.abrir_licao.bind("iot")))
+		var licao: String = Dados.AUDITORIAS[dados["empresa"]]["licao"] if dados.has("empresa") else "iot"
+		lista.append(botao(Rect2(560, 610, 200, 44), "Entender", principal.abrir_licao.bind(licao)))
 		lista.append(botao(Rect2(772, 610, 200, 44), "Fechar", fechar, true, "principal"))
 	return lista
 
@@ -1429,7 +1452,48 @@ func desenhar_zerosec() -> void:
 
 
 func botoes_zerosec() -> Array:
-	return [botao(Rect2(112, 560, 240, 44), "O que é pentest?", principal.abrir_licao.bind("pentest_autorizado")), botao(Rect2(364, 560, 240, 44), "Segurança de IoT", principal.abrir_licao.bind("iot"))]
+	return [botao(Rect2(112, 560, 240, 44), "O que é pentest?", principal.abrir_licao.bind("pentest_autorizado")), botao(Rect2(364, 560, 240, 44), "Segurança de IoT", principal.abrir_licao.bind("iot")), botao(Rect2(620, 560, 310, 44), "Contratos de empresas", abrir.bind("propostas", {}), true, "principal")]
+
+
+func desenhar_propostas() -> void:
+	cabecalho("Contratos de auditoria", "Escolha o valor. Uma proposta maior amplia o escopo, encurta o prazo e paga mais.")
+	Visual.texto(self, Vector2(112, 146), "Cada empresa paga uma vez. Se o alarme disparar, tente novamente amanhã.", 13, Visual.TEXTO_SUAVE)
+	var ids := ["mercadonet", "shoppa", "voaja"]
+	for i in ids.size():
+		var id: String = ids[i]
+		var empresa: Dictionary = Dados.empresa_por_id(id)
+		var info: Dictionary = Dados.AUDITORIAS[id]
+		var r := Rect2(112, 164 + i * 146, 1056, 136)
+		Visual.caixa(self, r, Visual.CARTAO_CLARO, 14, Visual.BORDA, 1)
+		Visual.logo(self, r.position + Vector2(34, 37), 20.0, empresa["logo"], empresa["sigla"])
+		Visual.texto(self, r.position + Vector2(68, 32), empresa["nome"], 19, Visual.TEXTO)
+		Visual.texto(self, r.position + Vector2(68, 55), "Escopo: %s" % info["area"], 13, Visual.TEXTO_SUAVE)
+		Visual.texto(self, r.position + Vector2(20, 76), "Risco: %s" % info["risco"], 13, Visual.TEXTO_SUAVE)
+		var registro: Dictionary = estado().perfil["auditorias"]
+		if id in registro["concluidas"]:
+			Visual.texto(self, r.position + Vector2(68, 108), "Auditoria concluída · relatório enviado", 15, Visual.HUMANO)
+		elif not estado().auditoria_disponivel(id):
+			Visual.texto(self, r.position + Vector2(68, 108), "Tentativa usada hoje · volte amanhã", 15, Visual.CREDITOS)
+
+
+func botoes_propostas() -> Array:
+	var lista: Array = []
+	var ids := ["mercadonet", "shoppa", "voaja"]
+	for i in ids.size():
+		var id: String = ids[i]
+		if not estado().auditoria_disponivel(id):
+			continue
+		for k in Dados.PROPOSTAS_AUDITORIA.size():
+			var oferta: Dictionary = Dados.PROPOSTAS_AUDITORIA[k]
+			lista.append(botao(Rect2(132 + k * 340, 252 + i * 146, 310, 44), "%s · %d códigos / %ds" % [Visual.dinheiro(oferta["valor"]), int(oferta["alvo"]), int(oferta["tempo"])], propor_auditoria.bind(id, k), true, "principal"))
+	return lista
+
+
+func propor_auditoria(id: String, proposta: int) -> void:
+	if not estado().aceitar_auditoria(id, proposta):
+		principal.avisar("Proposta indisponível. Volte amanhã ou escolha outra empresa.", Visual.PERIGO)
+		return
+	abrir("pentest", {"empresa": id, "proposta": proposta})
 
 
 func iniciar_ctf() -> void:

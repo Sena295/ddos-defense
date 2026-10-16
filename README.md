@@ -37,6 +37,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 - **Academia Cyber** com 40 lições sobre componentes, conceitos e ataques.
 - **Café Dev:** três cursos curtos sobre redes, defesa em camadas e código seguro, com pergunta, explicação e recompensa única. Há um café público na cidade e os cafés construídos também dão acesso aos cursos.
 - **Beco Hacker:** 16 desafios de código seguro em Python, JavaScript, PHP, Java, Bash, SQL, C e Go. Ache a linha vulnerável e escolha a correção. Cada 3 desafios sobem o nível de código seguro das suas empresas.
+- **Hub ZeroSec:** negocie auditorias autorizadas para três empresas fictícias. Uma proposta maior paga mais, exige uma sequência maior e dá menos tempo. Cada empresa aceita uma tentativa por dia e paga uma vez. Ao concluir, o relatório explica a defesa recomendada.
 - Relatório diário com "mandou bem" e "por que deu problema", quiz do conselho e dicas dos moradores da cidade.
 
 ## Controles

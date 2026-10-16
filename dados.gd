@@ -310,6 +310,7 @@ const MISSOES := [
 	{"id": "m_magnata", "titulo": "Magnata", "descricao": "Seja dono de 3 empresas.", "contador": "empresas_proprias", "alvo": 3, "dinheiro": 3000.0, "xp": 600, "requer": "m_compra"},
 	{"id": "m_terreno", "titulo": "Dono de terra", "descricao": "Compre um terreno no Bairro Sul ou no Distrito Neon (veja a Imobiliária).", "contador": "terrenos_comprados", "alvo": 1, "dinheiro": 400.0, "xp": 150, "requer": "m_onda"},
 	{"id": "m_pentest", "titulo": "Hacker do bem", "descricao": "Faça 3 pentests autorizados em câmeras ou caixas eletrônicos da cidade.", "contador": "pentests", "alvo": 3, "dinheiro": 600.0, "xp": 220, "requer": "m_lab"},
+	{"id": "m_auditoria", "titulo": "Consultor de segurança", "descricao": "Negocie e conclua uma auditoria de empresa no Hub ZeroSec.", "contador": "auditorias", "alvo": 1, "dinheiro": 750.0, "xp": 250, "requer": "m_pentest"},
 	{"id": "m_construtor", "titulo": "Construtor", "descricao": "Construa 2 imóveis nos seus terrenos.", "contador": "construcoes", "alvo": 2, "dinheiro": 900.0, "xp": 300, "requer": "m_terreno"},
 	{"id": "m_lenda", "titulo": "Lenda", "descricao": "Chegue ao dia 15 em qualquer empresa.", "contador": "maior_dia", "alvo": 15, "dinheiro": 5000.0, "xp": 1000, "requer": "m_uptime"},
 ]
@@ -346,6 +347,18 @@ const CURSOS_CAFE := [
 	{"id": "fundamentos_rede", "nome": "Como uma requisição chega ao site", "resumo": "CDN, borda, balanceador e servidor explicados no caminho do cliente.", "licao": "cdn", "pergunta": "Por que distribuir requisições entre vários servidores?", "opcoes": ["Para esconder falhas", "Para dividir a carga e manter o serviço disponível", "Para desligar o firewall"], "correta": 1, "explicacao": "O balanceador reparte o tráfego entre as máquinas. Se uma falha, as outras podem continuar atendendo.", "xp": 60},
 	{"id": "defesa_em_camadas", "nome": "Defesa em camadas", "resumo": "Veja por que WAF, rate limit e backup resolvem problemas diferentes.", "licao": "waf", "pergunta": "Um WAF substitui um backup?", "opcoes": ["Sim, bloqueia qualquer problema", "Sim, se houver CAPTCHA", "Não, prevenção e recuperação têm funções diferentes"], "correta": 2, "explicacao": "O WAF tenta impedir pedidos maliciosos. O backup recupera dados quando a prevenção não bastou ou houve uma falha.", "xp": 80},
 	{"id": "codigo_seguro", "nome": "Código seguro no dia a dia", "resumo": "Validação, atualização e testes com autorização.", "licao": "sqli", "pergunta": "Qual prática reduz o risco de injeção em consultas?", "opcoes": ["Concatenar a entrada do usuário", "Usar consultas parametrizadas", "Esconder a página de login"], "correta": 1, "explicacao": "Consultas parametrizadas separam dados de instruções. A entrada do usuário não vira parte do comando.", "xp": 100},
+]
+
+const AUDITORIAS := {
+	"mercadonet": {"area": "checkout e catálogo", "risco": "tráfego excessivo no checkout", "correcao": "Rate Limit no checkout limita abuso por cliente; o Load Balancer distribui os pedidos legítimos sem derrubar o pagamento.", "licao": "rate"},
+	"shoppa": {"area": "vitrine e contas", "risco": "requisições automatizadas no login", "correcao": "MFA reduz o valor de senhas vazadas; Rate Limit desacelera tentativas em massa sem bloquear toda a vitrine.", "licao": "mfa"},
+	"voaja": {"area": "busca e reservas", "risco": "robôs copiando preços e sobrecarregando a busca", "correcao": "Cache atende pesquisas repetidas; Rate Limit limita coletores automáticos sem impedir clientes reais de reservar.", "licao": "rate"},
+}
+
+const PROPOSTAS_AUDITORIA := [
+	{"valor": 500.0, "alvo": 3, "tempo": 36.0, "xp": 100, "nome": "Básica"},
+	{"valor": 1500.0, "alvo": 4, "tempo": 25.0, "xp": 200, "nome": "Avançada"},
+	{"valor": 5000.0, "alvo": 5, "tempo": 16.0, "xp": 350, "nome": "Crítica"},
 ]
 
 const LOTES := [

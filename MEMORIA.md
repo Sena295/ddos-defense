@@ -39,6 +39,13 @@ DDoS Defense é um jogo educativo de administração de sistemas e ciberseguran�
 - Balanceamento do dinheiro com bônus de carreira, imóveis e cursos em partidas longas.
 - Uso de tela de toque e navegação por teclado nos novos painéis.
 
+## Contratos do Hub ZeroSec
+
+- Três empresas fictícias aceitam propostas de auditoria: MercadoNet, NexoMall e VoaJá. As três faixas pagam R$ 500 mil, R$ 1,5 milhão e R$ 5 milhões. Exigem respectivamente 3, 4 e 5 códigos em 36, 25 e 16 segundos.
+- O contrato é uma simulação autorizada dentro do jogo. Ao aceitar, a empresa consome a tentativa do dia. Uma vitória paga uma vez por empresa; falha libera outra tentativa apenas no dia seguinte. O estado persiste no save, e saves antigos ganham os campos novos em `normalizar()`.
+- O relatório associa o risco fictício à defesa: Rate Limit, MFA, Cache e Load Balancer. A missão Consultor de segurança e a especialização Hacker ético progridem ao entregar relatórios.
+- Verificação local desta etapa: 156 testes integrados aprovados, sem erros de script; as telas de propostas, desafio crítico e relatório foram gravadas no Godot e inspecionadas em 1280 × 720. A publicação Web ainda precisa ser conferida depois do push.
+
 ## Validação da etapa 1
 
 - Commit de código: `7f772ff88eb95ab29c8eb605c2665e54c3563d7f`.

@@ -49,6 +49,7 @@ func padrao(nome: String) -> Dictionary:
 		"mundo": [21.5, 21.2], "operacoes": {}, "quiz_usados": [],
 		"terrenos": {}, "pentests": {"data": "", "feitos": []}, "ctf": {"data": "", "feito": false}, "graficos_leves": OS.has_feature("web") or OS.has_feature("mobile"),
 		"carreira": "operador", "carreiras": {"operador": 0, "hacker": 0, "empreendedor": 0}, "cursos_cafe": [],
+		"auditorias": {"concluidas": [], "tentativas": {"data": "", "propostas": {}}},
 	}
 
 
@@ -66,6 +67,12 @@ func normalizar(p: Dictionary) -> Dictionary:
 		p["carreira"] = "operador"
 	for chave in Dados.CARREIRAS:
 		p["carreiras"][chave] = maxi(0, int(p["carreiras"].get(chave, 0)))
+	for chave in base["auditorias"]:
+		if not p["auditorias"].has(chave):
+			p["auditorias"][chave] = base["auditorias"][chave]
+	for chave in base["auditorias"]["tentativas"]:
+		if not p["auditorias"]["tentativas"].has(chave):
+			p["auditorias"]["tentativas"][chave] = base["auditorias"]["tentativas"][chave]
 	p["xp"] = int(p["xp"])
 	p["dinheiro"] = float(p["dinheiro"])
 	if not p["startup"].is_empty() and String(p["startup"].get("lote", "")) == "":
@@ -679,6 +686,47 @@ func registrar_pentest(id: String, recompensa: float) -> bool:
 	desbloquear_licao("pentest_autorizado")
 	salvar()
 	return true
+
+
+func auditoria_disponivel(id: String) -> bool:
+	if perfil.is_empty() or not Dados.AUDITORIAS.has(id):
+		return false
+	var registro: Dictionary = perfil["auditorias"]
+	if id in registro["concluidas"]:
+		return false
+	if registro["tentativas"]["data"] != hoje():
+		registro["tentativas"] = {"data": hoje(), "propostas": {}}
+	return not registro["tentativas"]["propostas"].has(id)
+
+
+func aceitar_auditoria(id: String, proposta: int) -> bool:
+	if proposta < 0 or proposta >= Dados.PROPOSTAS_AUDITORIA.size() or not auditoria_disponivel(id):
+		return false
+	perfil["auditorias"]["tentativas"]["propostas"][id] = proposta
+	salvar()
+	return true
+
+
+func concluir_auditoria(id: String, proposta: int) -> float:
+	if perfil.is_empty() or not Dados.AUDITORIAS.has(id) or proposta < 0 or proposta >= Dados.PROPOSTAS_AUDITORIA.size():
+		return 0.0
+	var registro: Dictionary = perfil["auditorias"]
+	if id in registro["concluidas"] or registro["tentativas"]["data"] != hoje() or int(registro["tentativas"]["propostas"].get(id, -1)) != proposta:
+		return 0.0
+	var oferta: Dictionary = Dados.PROPOSTAS_AUDITORIA[proposta]
+	var premio: float = oferta["valor"]
+	if perfil["carreira"] == "hacker":
+		premio *= 1.0 + 0.1 * nivel_carreira("hacker")
+	registro["concluidas"].append(id)
+	perfil["dinheiro"] = dinheiro() + premio
+	somar("auditorias")
+	somar("pentests")
+	registrar_atividade_carreira("hacker")
+	ganhar_xp(int(oferta["xp"]))
+	desbloquear_licao(Dados.AUDITORIAS[id]["licao"])
+	avisar("Auditoria entregue: +%s mil na carteira" % roundi(premio), COR_OK)
+	salvar()
+	return premio
 
 
 func ctf_disponivel() -> bool:

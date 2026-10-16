@@ -716,7 +716,7 @@ func seguir_guia() -> void:
 		"m_licoes": "academia", "m_lab": "beco", "m_escala": "mercadonet",
 		"m_loja": "loja", "m_backup": "mercadonet", "m_onda": "mercadonet",
 		"m_incidente": "mercadonet", "m_compra": "bolsa", "m_startup": "imobiliaria",
-		"m_terreno": "imobiliaria", "m_pentest": "zerosec", "m_construtor": "imobiliaria"
+		"m_terreno": "imobiliaria", "m_pentest": "zerosec", "m_auditoria": "zerosec", "m_construtor": "imobiliaria"
 	}
 	var id: String = destino_por_missao.get(missao["id"], "missoes")
 	var local := local_por_id(id)

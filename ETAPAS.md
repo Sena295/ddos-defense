@@ -12,7 +12,7 @@
 
 - [x] Carreiras Operador, Hacker ético e Empreendedor com progresso salvo e bônus de economia.
 - [x] Café Dev com cursos e perguntas que explicam decisões técnicas.
-- [ ] Contratos de auditoria com proposta de preço e dificuldade proporcional, em alvos fictícios autorizados.
+- [x] Contratos de auditoria com proposta de preço e dificuldade proporcional, em alvos fictícios autorizados.
 - [ ] Caminhos próprios de Dev, operações e empreendedorismo com atividades distintas e metas de longo prazo.
 
 ## Etapa 3 — cidade e economia
