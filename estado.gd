@@ -47,7 +47,8 @@ func padrao(nome: String) -> Dictionary:
 		"sequencia": {"ultimo": "", "dias": 0, "melhor": 0},
 		"diarias": {"data": "", "contadores": {}, "resgatadas": []},
 		"mundo": [21.5, 21.2], "operacoes": {}, "quiz_usados": [],
-		"terrenos": {}, "pentests": {"data": "", "feitos": []}, "ctf": {"data": "", "feito": false}, "graficos_leves": false,
+		"terrenos": {}, "pentests": {"data": "", "feitos": []}, "ctf": {"data": "", "feito": false}, "graficos_leves": OS.has_feature("web") or OS.has_feature("mobile"),
+		"carreira": "operador", "carreiras": {"operador": 0, "hacker": 0, "empreendedor": 0}, "cursos_cafe": [],
 	}
 
 
@@ -61,6 +62,10 @@ func normalizar(p: Dictionary) -> Dictionary:
 	for chave in base["equipados"]:
 		if not p["equipados"].has(chave):
 			p["equipados"][chave] = ""
+	if not Dados.CARREIRAS.has(p["carreira"]):
+		p["carreira"] = "operador"
+	for chave in Dados.CARREIRAS:
+		p["carreiras"][chave] = maxi(0, int(p["carreiras"].get(chave, 0)))
 	p["xp"] = int(p["xp"])
 	p["dinheiro"] = float(p["dinheiro"])
 	if not p["startup"].is_empty() and String(p["startup"].get("lote", "")) == "":
@@ -189,6 +194,48 @@ func avisar(texto: String, cor := COR_INFO, licao := "") -> void:
 
 func dinheiro() -> float:
 	return perfil.get("dinheiro", 0.0)
+
+
+func escolher_carreira(id: String) -> bool:
+	if perfil.is_empty() or not Dados.CARREIRAS.has(id):
+		return false
+	perfil["carreira"] = id
+	salvar()
+	return true
+
+
+func progresso_carreira(id: String) -> int:
+	return int(perfil.get("carreiras", {}).get(id, 0))
+
+
+func nivel_carreira(id: String) -> int:
+	var divisor := 2 if id == "empreendedor" else 3
+	return mini(3, progresso_carreira(id) / divisor)
+
+
+func registrar_atividade_carreira(id: String) -> void:
+	if perfil.is_empty() or not Dados.CARREIRAS.has(id):
+		return
+	perfil["carreiras"][id] = progresso_carreira(id) + 1
+	var divisor := 2 if id == "empreendedor" else 3
+	if progresso_carreira(id) <= 3 * divisor and progresso_carreira(id) % divisor == 0:
+		avisar("Especialização em %s: nível %d" % [Dados.CARREIRAS[id]["nome"], nivel_carreira(id)], COR_OK)
+
+
+func concluir_curso_cafe(id: String) -> bool:
+	if perfil.is_empty() or id in perfil["cursos_cafe"]:
+		return false
+	for curso in Dados.CURSOS_CAFE:
+		if curso["id"] == id:
+			perfil["cursos_cafe"].append(id)
+			perfil["dinheiro"] = dinheiro() + 100.0
+			ganhar_xp(int(curso["xp"]))
+			desbloquear_licao(curso["licao"])
+			somar("cursos_concluidos")
+			avisar("Curso concluído: +R$ 100 mil e +%d XP" % int(curso["xp"]), COR_OK)
+			salvar()
+			return true
+	return false
 
 
 func gastar(valor: float) -> bool:
@@ -574,6 +621,7 @@ func construir(id: String, tipo: String) -> String:
 		return "Dinheiro insuficiente na carteira"
 	perfil["terrenos"][id] = tipo
 	somar("construcoes")
+	registrar_atividade_carreira("empreendedor")
 	avisar("%s inaugurado! Rende %s por dia operado" % [dados["nome"], "R$ %d mil" % roundi(dados["renda"])], COR_OURO)
 	salvar()
 	return ""
@@ -622,8 +670,10 @@ func registrar_pentest(id: String, recompensa: float) -> bool:
 	if pentest_feito(id):
 		return false
 	pentests_hoje().append(id)
-	perfil["dinheiro"] = dinheiro() + recompensa
+	var premio := recompensa * (1.0 + 0.1 * nivel_carreira("hacker")) if perfil["carreira"] == "hacker" else recompensa
+	perfil["dinheiro"] = dinheiro() + premio
 	somar("pentests")
+	registrar_atividade_carreira("hacker")
 	ganhar_xp(60)
 	desbloquear_licao("iot")
 	desbloquear_licao("pentest_autorizado")
@@ -651,7 +701,14 @@ func registrar_dia(id: String, dia: int, lucro: float) -> float:
 	est["lucro"] = float(est["lucro"]) + lucro
 	registrar_maximo("maior_dia", dia)
 	somar("dias_operados")
-	var dividendo := maxf(0.0, lucro) * participacao(id) + renda_imoveis()
+	registrar_atividade_carreira("operador")
+	var parte := maxf(0.0, lucro) * participacao(id)
+	if perfil["carreira"] == "operador":
+		parte *= 1.0 + 0.05 * nivel_carreira("operador")
+	var imoveis := renda_imoveis()
+	if perfil["carreira"] == "empreendedor":
+		imoveis *= 1.0 + 0.1 * nivel_carreira("empreendedor")
+	var dividendo := parte + imoveis
 	if dividendo > 0.0:
 		perfil["dinheiro"] = dinheiro() + dividendo
 	ganhar_xp(XP_DIA_BASE + XP_DIA_EXTRA * dia + xp_imoveis())

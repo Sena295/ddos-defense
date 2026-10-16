@@ -192,6 +192,10 @@ func botoes() -> Array:
 			return botoes_arena()
 		"missoes":
 			return botoes_missoes()
+		"carreira":
+			return botoes_carreira()
+		"cafe":
+			return botoes_cafe()
 		"loja":
 			return botoes_loja()
 		"academia":
@@ -250,6 +254,10 @@ func _draw() -> void:
 			desenhar_arena()
 		"missoes":
 			desenhar_missoes()
+		"carreira":
+			desenhar_carreira()
+		"cafe":
+			desenhar_cafe()
 		"loja":
 			desenhar_loja()
 		"academia":
@@ -359,6 +367,104 @@ func botoes_missoes() -> Array:
 		if estado().valor_diario(d["contador"]) >= int(d["alvo"]) and not d["id"] in resgatadas:
 			lista.append(botao(Rect2(1030, 172 + i * 88 + 20, 126, 40), "Resgatar", resgatar.bind(d["id"], true), true, "ouro"))
 	return lista
+
+
+func desenhar_carreira() -> void:
+	cabecalho("Sua carreira", "Escolha uma profissão. Você pode trocar quando quiser e mantém o progresso de cada uma.")
+	var ids := ["operador", "hacker", "empreendedor"]
+	for i in ids.size():
+		var id: String = ids[i]
+		var info: Dictionary = Dados.CARREIRAS[id]
+		var r := Rect2(112, 160 + i * 144, 1056, 132)
+		var ativa: bool = estado().perfil["carreira"] == id
+		Visual.caixa(self, r, Visual.CARTAO_CLARO, 14, Visual.PRINCIPAL if ativa else Visual.BORDA, 2 if ativa else 1)
+		Visual.texto(self, r.position + Vector2(20, 30), info["nome"] + ("  ·  ATIVA" if ativa else ""), 20, Visual.PRINCIPAL if ativa else Visual.TEXTO)
+		Visual.texto(self, r.position + Vector2(20, 56), info["descricao"], 14, Visual.TEXTO_SUAVE)
+		Visual.texto(self, r.position + Vector2(20, 82), info["bonus"], 13, Visual.HUMANO)
+		var divisor := 2 if id == "empreendedor" else 3
+		Visual.texto(self, r.position + Vector2(20, 108), "Especialização %d/3  ·  %d ações" % [estado().nivel_carreira(id), estado().progresso_carreira(id)], 13, Visual.CREDITOS)
+		barra(Rect2(r.position.x + 300, r.end.y - 22, 460, 6), float(mini(estado().progresso_carreira(id), divisor * 3)) / float(divisor * 3), Visual.DESTAQUE)
+	Visual.paragrafo(self, Vector2(112, 613), "No laboratório, os testes são simulações autorizadas. Os ganhos da carreira ativa aparecem nas operações e nos pentests.", 12, Visual.TEXTO_SUAVE, 960, 1.3, 2)
+
+
+func botoes_carreira() -> Array:
+	var lista: Array = []
+	var ids := ["operador", "hacker", "empreendedor"]
+	for i in ids.size():
+		var id: String = ids[i]
+		lista.append(botao(Rect2(942, 197 + i * 144, 204, 46), "Escolhida" if estado().perfil["carreira"] == id else "Escolher", escolher_carreira.bind(id), estado().perfil["carreira"] != id, "principal"))
+	return lista
+
+
+func escolher_carreira(id: String) -> void:
+	if estado().escolher_carreira(id):
+		principal.avisar("Nova carreira: %s" % Dados.CARREIRAS[id]["nome"], Visual.DESTAQUE)
+
+
+func desenhar_cafe() -> void:
+	cabecalho("Café Dev", "Entre, estude e teste o que aprendeu. Cada curso dá XP e uma recompensa única.")
+	if not dados.has("curso"):
+		for i in Dados.CURSOS_CAFE.size():
+			var curso: Dictionary = Dados.CURSOS_CAFE[i]
+			var r := Rect2(112, 160 + i * 150, 1056, 136)
+			var feito: bool = curso["id"] in estado().perfil["cursos_cafe"]
+			Visual.caixa(self, r, Visual.CARTAO_CLARO, 14, Visual.HUMANO if feito else Visual.BORDA, 1)
+			Visual.texto(self, r.position + Vector2(22, 36), curso["nome"], 20, Visual.TEXTO)
+			Visual.paragrafo(self, r.position + Vector2(22, 66), curso["resumo"], 14, Visual.TEXTO_SUAVE, 760, 1.3, 2)
+			Visual.texto(self, r.position + Vector2(22, 110), "Concluído" if feito else "+R$ 100 mil  ·  +%d XP" % int(curso["xp"]), 13, Visual.HUMANO if feito else Visual.CREDITOS)
+		return
+	var curso_atual: Dictionary = Dados.CURSOS_CAFE[int(dados["curso"])]
+	Visual.texto(self, Vector2(112, 180), curso_atual["nome"], 22, Visual.CREDITOS)
+	Visual.paragrafo(self, Vector2(112, 215), curso_atual["resumo"], 15, Visual.TEXTO_SUAVE, 1000, 1.35, 2)
+	Visual.paragrafo(self, Vector2(112, 270), curso_atual["pergunta"], 19, Visual.TEXTO, 1000, 1.35, 2)
+	for i in 3:
+		var r2 := Rect2(112, 322 + i * 70, 1056, 56)
+		var respondida: bool = dados.get("resposta", -1) >= 0
+		var cor := Visual.HUMANO if respondida and i == int(curso_atual["correta"]) else (Visual.PERIGO if respondida and i == int(dados["resposta"]) else Visual.BORDA)
+		Visual.caixa(self, r2, Visual.CARTAO_CLARO, 12, cor, 2 if respondida else 1)
+		Visual.texto(self, r2.position + Vector2(18, 35), "%d   %s" % [i + 1, curso_atual["opcoes"][i]], 16, Visual.TEXTO)
+	if dados.get("resposta", -1) >= 0:
+		Visual.paragrafo(self, Vector2(112, 555), ("Boa! " if int(dados["resposta"]) == int(curso_atual["correta"]) else "Ainda não. ") + String(curso_atual["explicacao"]), 14, Visual.HUMANO if int(dados["resposta"]) == int(curso_atual["correta"]) else Visual.CREDITOS, 1000, 1.25, 2)
+
+
+func botoes_cafe() -> Array:
+	var lista: Array = []
+	if not dados.has("curso"):
+		for i in Dados.CURSOS_CAFE.size():
+			lista.append(botao(Rect2(950, 205 + i * 150, 194, 44), "Revisar" if Dados.CURSOS_CAFE[i]["id"] in estado().perfil["cursos_cafe"] else "Estudar", abrir_curso.bind(i), true, "principal"))
+		return lista
+	var curso: Dictionary = Dados.CURSOS_CAFE[int(dados["curso"])]
+	if dados.get("resposta", -1) < 0:
+		for i in 3:
+			lista.append({"rect": Rect2(112, 322 + i * 70, 1056, 56), "rotulo": "", "acao": responder_curso.bind(i), "ativo": true, "estilo": "invisivel"})
+	lista.append(botao(Rect2(112, 596, 220, 46), "Ver lição", principal.abrir_licao.bind(curso["licao"])))
+	lista.append(botao(Rect2(948, 596, 220, 46), "Voltar aos cursos", voltar_cursos))
+	if dados.get("resposta", -1) >= 0 and int(dados["resposta"]) != int(curso["correta"]):
+		lista.append(botao(Rect2(710, 596, 220, 46), "Tentar novamente", tentar_curso))
+	return lista
+
+
+func abrir_curso(indice: int) -> void:
+	dados["curso"] = indice
+	dados["resposta"] = -1
+
+
+func responder_curso(indice: int) -> void:
+	if dados.get("resposta", -1) >= 0:
+		return
+	dados["resposta"] = indice
+	var curso: Dictionary = Dados.CURSOS_CAFE[int(dados["curso"])]
+	if indice == int(curso["correta"]):
+		estado().concluir_curso_cafe(curso["id"])
+
+
+func tentar_curso() -> void:
+	dados["resposta"] = -1
+
+
+func voltar_cursos() -> void:
+	dados.erase("curso")
+	dados.erase("resposta")
 
 
 func resgatar(id: String, diaria: bool) -> void:
@@ -816,6 +922,7 @@ func botoes_sede() -> Array:
 		botao(Rect2(820, 284, 340, 50), "Política de privacidade", abrir.bind("politica", {})),
 		botao(Rect2(820, 346, 340, 50), "Trocar de conta", trocar_conta),
 		botao(Rect2(820, 408, 340, 50), "Modo leve: %s" % ("ligado" if estado().perfil.get("graficos_leves", false) else "desligado"), alternar_modo_leve),
+		botao(Rect2(820, 470, 340, 50), "Escolher carreira", abrir.bind("carreira", {}), true, "principal"),
 		botao(Rect2(820, 560, 340, 50), "Excluir conta", abrir.bind("excluir", {}), true, "perigo"),
 	]
 

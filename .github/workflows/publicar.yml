@@ -57,6 +57,11 @@ jobs:
           touch build/web/.nojekyll
           cd build/windows && zip -q ../DDoS-Defense-Windows.zip DDoS-Defense.exe
 
+      - name: Testar jogo
+        run: |
+          GODOT=~/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64
+          $GODOT --headless --path . --fixed-fps 60 -s res://tests/testes_integracao.gd
+
       - name: Publicar no GitHub Pages
         run: |
           cd build/web

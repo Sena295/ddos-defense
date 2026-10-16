@@ -77,7 +77,7 @@ const EMPRESAS := [
 		"mix": {"humano": 0.66, "volumetrico": 0.18, "l7": 0.06, "scraper": 0.1, "sqli": 0.02, "xss": 0.02},
 		"eventos": ["black_friday", "promocao", "natal"], "ameacas": ["ddos_volumetrico", "scraping_massivo", "ataque_l7"], "hackers": ["onda_hackers", "phishing", "zero_day"],
 		"sites": [{"nome": "Loja", "foco": ""}, {"nome": "Pagamentos", "foco": "credencial"}, {"nome": "Portal do Vendedor", "foco": "scraper"}]},
-	{"id": "shoppa", "nome": "Shoppa", "sigla": "SH", "setor": "Marketplace mobile", "cor": Color("fb923c"), "logo": {"forma": "quadrado", "cor": Color("fb923c"), "cor2": Color("ffffff"), "icone": "sacola"},
+	{"id": "shoppa", "nome": "NexoMall", "sigla": "NM", "setor": "Marketplace mobile", "cor": Color("fb923c"), "logo": {"forma": "quadrado", "cor": Color("fb923c"), "cor2": Color("ffffff"), "icone": "sacola"},
 		"dificuldade": 1, "preco": 5000.0, "nivel": 0, "contrato": true, "receita": 7.0, "custo_queda": 55.0, "caixa": 1600.0,
 		"descricao": "Compras pelo app com promoções relâmpago a cada hora. O tráfego vem em ondas gigantes e sem aviso.",
 		"mix": {"humano": 0.62, "volumetrico": 0.18, "l7": 0.12, "scraper": 0.08, "xss": 0.02},
@@ -293,7 +293,7 @@ const ITENS := {
 
 const MISSOES := [
 	{"id": "m_cidade", "titulo": "Bem-vindo à Cidade Tech", "descricao": "Ande até a Central de Missões (prédio amarelo, a oeste da sua sede).", "contador": "visitou_missoes", "alvo": 1, "dinheiro": 200.0, "xp": 50},
-	{"id": "m_contrato", "titulo": "Seu primeiro contrato", "descricao": "Entre no prédio da MercadoNet, Shoppa ou VoaJá e complete 1 dia de operação.", "contador": "dias_operados", "alvo": 1, "dinheiro": 300.0, "xp": 100, "requer": "m_cidade"},
+	{"id": "m_contrato", "titulo": "Seu primeiro contrato", "descricao": "Entre no prédio da MercadoNet, NexoMall ou VoaJá e complete 1 dia de operação.", "contador": "dias_operados", "alvo": 1, "dinheiro": 300.0, "xp": 100, "requer": "m_cidade"},
 	{"id": "m_waf", "titulo": "Defesa básica", "descricao": "Instale um Firewall WAF em qualquer sistema.", "contador": "componente_waf", "alvo": 1, "dinheiro": 200.0, "xp": 80, "requer": "m_contrato"},
 	{"id": "m_licoes", "titulo": "Estudar faz parte", "descricao": "Leia 3 lições na Academia Cyber ou no botão Por quê?.", "contador": "licoes_lidas", "alvo": 3, "dinheiro": 200.0, "xp": 80, "requer": "m_contrato"},
 	{"id": "m_lab", "titulo": "Primeiro bug encontrado", "descricao": "Resolva 1 desafio no Beco Hacker (laboratório de código).", "contador": "desafios_resolvidos", "alvo": 1, "dinheiro": 300.0, "xp": 120, "requer": "m_waf"},
@@ -335,6 +335,18 @@ const CONSTRUCOES := {
 	"escola": {"nome": "Escola de Programação", "custo": 7000.0, "renda": 260.0, "xp": 40, "nivel": 2, "altura": 104.0, "cor": Color("a855f7"), "parede": Color("efe7fb"), "descricao": "Forma novos talentos. Rende dinheiro e experiência todo dia."},
 	"datacenter_p": {"nome": "Mini Data Center", "custo": 9500.0, "renda": 520.0, "xp": 0, "nivel": 2, "altura": 90.0, "cor": Color("38bdf8"), "parede": Color("cfd8e3"), "descricao": "Aluga servidores para outras empresas. A melhor renda da cidade."},
 }
+
+const CARREIRAS := {
+	"operador": {"nome": "Operador de sistemas", "descricao": "Mantenha sites no ar. Cada 3 dias de operação elevam sua especialização.", "bonus": "Até 15% a mais sobre sua parte no lucro."},
+	"hacker": {"nome": "Hacker ético", "descricao": "Teste sistemas da cidade com permissão. Cada 3 pentests elevam sua especialização.", "bonus": "Até 30% a mais nas recompensas de pentest."},
+	"empreendedor": {"nome": "Empreendedor", "descricao": "Compre terrenos e construa negócios. Cada 2 construções elevam sua especialização.", "bonus": "Até 30% a mais na renda dos imóveis."},
+}
+
+const CURSOS_CAFE := [
+	{"id": "fundamentos_rede", "nome": "Como uma requisição chega ao site", "resumo": "CDN, borda, balanceador e servidor explicados no caminho do cliente.", "licao": "cdn", "pergunta": "Por que distribuir requisições entre vários servidores?", "opcoes": ["Para esconder falhas", "Para dividir a carga e manter o serviço disponível", "Para desligar o firewall"], "correta": 1, "explicacao": "O balanceador reparte o tráfego entre as máquinas. Se uma falha, as outras podem continuar atendendo.", "xp": 60},
+	{"id": "defesa_em_camadas", "nome": "Defesa em camadas", "resumo": "Veja por que WAF, rate limit e backup resolvem problemas diferentes.", "licao": "waf", "pergunta": "Um WAF substitui um backup?", "opcoes": ["Sim, bloqueia qualquer problema", "Sim, se houver CAPTCHA", "Não, prevenção e recuperação têm funções diferentes"], "correta": 2, "explicacao": "O WAF tenta impedir pedidos maliciosos. O backup recupera dados quando a prevenção não bastou ou houve uma falha.", "xp": 80},
+	{"id": "codigo_seguro", "nome": "Código seguro no dia a dia", "resumo": "Validação, atualização e testes com autorização.", "licao": "sqli", "pergunta": "Qual prática reduz o risco de injeção em consultas?", "opcoes": ["Concatenar a entrada do usuário", "Usar consultas parametrizadas", "Esconder a página de login"], "correta": 1, "explicacao": "Consultas parametrizadas separam dados de instruções. A entrada do usuário não vira parte do comando.", "xp": 100},
+]
 
 const LOTES := [
 	{"id": "lote_centro", "nome": "Terreno do Centro", "area": Rect2i(38, 16, 5, 4), "preco": 4000.0, "bairro": "Centro"},

@@ -22,6 +22,7 @@ const RET_MINIMAPA := Rect2(1060, 16, 204, 120)
 const RET_BOTAO_MISSOES := Rect2(1064, 630, 196, 72)
 const RET_BOTAO_SEDE := Rect2(856, 630, 196, 72)
 const RET_PROMPT := Rect2(440, 640, 400, 54)
+const RET_GUIA := Rect2(316, 145, 66, 30)
 const QUANTIDADE_NPCS := 18
 const QUANTIDADE_NPCS_LEVE := 7
 const CONTORNO := Color("1b2233")
@@ -45,6 +46,7 @@ const LOCAIS := [
 	{"id": "criptovault", "tipo": "empresa", "area": Rect2i(32, 7, 3, 3), "altura": 118.0},
 	{"id": "telenova", "tipo": "empresa", "area": Rect2i(36, 7, 3, 3), "altura": 104.0},
 	{"id": "beco", "tipo": "beco", "nome": "Beco Hacker", "area": Rect2i(1, 17, 4, 3), "altura": 78.0, "cor": Color("22c55e"), "parede": Color("3b3f4a")},
+	{"id": "cafe_dev", "tipo": "cafe", "nome": "Café Dev", "area": Rect2i(7, 17, 4, 3), "altura": 72.0, "cor": Color("f97316"), "parede": Color("f6e7d5")},
 	{"id": "saudemais", "tipo": "empresa", "area": Rect2i(1, 23, 3, 3), "altura": 98.0},
 	{"id": "govdigital", "tipo": "empresa", "area": Rect2i(5, 23, 3, 3), "altura": 116.0},
 	{"id": "neuroai", "tipo": "empresa", "area": Rect2i(9, 23, 3, 3), "altura": 128.0},
@@ -90,6 +92,8 @@ var camada_hud := Node2D.new()
 var assinatura_rotulos := ""
 var malhas_predios: Dictionary = {}
 var chave_cidade := ""
+var estaticos_visiveis: Array = []
+var camera_estaticos := Vector2(-10000, -10000)
 
 
 func estado():
@@ -158,6 +162,7 @@ func montar_locais() -> void:
 	for l in locais:
 		var a: Rect2i = l["area"]
 		estaticos.append({"tipo": "predio", "local": l, "caixa": Rect2(Vector2(a.position), Vector2(a.size))})
+	camera_estaticos = Vector2(-10000, -10000)
 
 
 func bloqueia(l: Dictionary) -> bool:
@@ -381,6 +386,10 @@ func calcular_caminho(de: Vector2, para: Vector2) -> Array:
 
 func _process(delta: float) -> void:
 	if not visible:
+		return
+	if principal.modal_aberto():
+		if assinatura_cidade() != chave_cidade:
+			atualizar_cidade()
 		return
 	tempo += delta
 	mouse = get_local_mouse_position()
@@ -627,7 +636,10 @@ func interagir(destino: Dictionary) -> void:
 		"datacenter":
 			principal.avisar("Data Center: aqui ficam as torres de verdade. Energia redundante, refrigeração e backups fora do prédio.", Visual.DESTAQUE, "backup")
 		"lote":
-			principal.abrir_painel("terreno", {"id": l["lote"]})
+			if String(l.get("construcao", "")) == "cafe":
+				principal.abrir_painel("cafe", {})
+			else:
+				principal.abrir_painel("terreno", {"id": l["lote"]})
 		"decor":
 			principal.avisar("%s: prédio residencial do Distrito Neon." % l["nome"], Visual.DESTAQUE)
 		_:
@@ -652,6 +664,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func clicar(pos: Vector2) -> void:
+	if RET_GUIA.has_point(pos) and not estado().missoes_ativas().is_empty():
+		seguir_guia()
+		return
 	if RET_BOTAO_MISSOES.has_point(pos):
 		principal.abrir_painel("missoes", {})
 		return
@@ -685,6 +700,36 @@ func clicar(pos: Vector2) -> void:
 		interagir_ao_chegar = {"tipo": "local", "local": l}
 		return
 	ir_para(tela_para_mundo(tela_mundo))
+
+
+func seguir_guia() -> void:
+	var ativas: Array = estado().missoes_ativas()
+	if ativas.is_empty():
+		principal.abrir_painel("missoes", {})
+		return
+	var missao: Dictionary = ativas[0]
+	if estado().missao_concluida(missao):
+		principal.abrir_painel("missoes", {})
+		return
+	var destino_por_missao := {
+		"m_cidade": "missoes", "m_contrato": "mercadonet", "m_waf": "mercadonet",
+		"m_licoes": "academia", "m_lab": "beco", "m_escala": "mercadonet",
+		"m_loja": "loja", "m_backup": "mercadonet", "m_onda": "mercadonet",
+		"m_incidente": "mercadonet", "m_compra": "bolsa", "m_startup": "imobiliaria",
+		"m_terreno": "imobiliaria", "m_pentest": "zerosec", "m_construtor": "imobiliaria"
+	}
+	var id: String = destino_por_missao.get(missao["id"], "missoes")
+	var local := local_por_id(id)
+	if local.is_empty():
+		principal.abrir_painel("missoes", {})
+		return
+	ir_para(porta(local))
+	if not caminho.is_empty():
+		interagir_ao_chegar = {"tipo": "local", "local": local}
+	elif jogador.distance_to(porta(local)) < RAIO_INTERACAO:
+		interagir({"tipo": "local", "local": local})
+	else:
+		principal.avisar("Caminho bloqueado. Abra o mapa e escolha outra rota.", Visual.PERIGO)
 
 
 func ir_para(destino: Vector2) -> void:
@@ -859,14 +904,15 @@ func antes(a: Dictionary, b: Dictionary) -> bool:
 
 func desenhar_objetos() -> void:
 	var lista: Array = []
-	for e in estaticos:
-		var r: Rect2 = e["caixa"]
-		var tela := iso(r.get_center())
-		if e["tipo"] == "predio":
-			if visivel_tela(tela, 420.0):
-				lista.append(e)
-		elif visivel_tela(tela, 120.0):
-			lista.append(e)
+	if camera.distance_to(camera_estaticos) >= 24.0:
+		camera_estaticos = camera
+		estaticos_visiveis = []
+		for e in estaticos:
+			var r: Rect2 = e["caixa"]
+			var tela := iso(r.get_center())
+			if visivel_tela(tela, 452.0 if e["tipo"] == "predio" else 152.0):
+				estaticos_visiveis.append(e)
+	lista.append_array(estaticos_visiveis)
 	for i in npcs.size():
 		if visivel_tela(iso(npcs[i]["pos"])):
 			lista.append({"tipo": "npc", "indice": i, "caixa": caixa_ponto(npcs[i]["pos"])})
@@ -1444,10 +1490,11 @@ func desenhar_missao_atual(ci: CanvasItem) -> void:
 	Visual.caixa(ci, r, Visual.com_alfa(Visual.CARTAO, 0.9), 14, Visual.BORDA, 1, 8)
 	Visual.texto(ci, r.position + Vector2(14, 22), "MISSÃO", 10, Visual.CREDITOS)
 	Visual.texto(ci, r.position + Vector2(66, 22), m["titulo"], 13, Visual.TEXTO)
-	Visual.paragrafo(ci, r.position + Vector2(14, 42), m["descricao"], 11, Visual.TEXTO_SUAVE, 300, 1.3, 2)
+	Visual.paragrafo(ci, r.position + Vector2(14, 42), m["descricao"], 11, Visual.TEXTO_SUAVE, 290, 1.3, 2)
 	var progresso := clampf(float(estado().valor(m["contador"])) / float(m["alvo"]), 0.0, 1.0)
 	Visual.texto(ci, Vector2(r.end.x - 60, r.position.y + 22), "%d/%d" % [mini(estado().valor(m["contador"]), int(m["alvo"])), int(m["alvo"])], 11, Visual.TEXTO_SUAVE, HORIZONTAL_ALIGNMENT_RIGHT, 48)
 	Visual.caixa(ci, Rect2(r.position.x + 14, r.end.y - 8, r.size.x - 28, 3), Visual.LINHA, 2)
+	Visual.botao(ci, RET_GUIA, "Resgatar" if estado().missao_concluida(m) else "Ir", Visual.PRINCIPAL, RET_GUIA.has_point(mouse), true, 12, true)
 	Visual.caixa(ci, Rect2(r.position.x + 14, r.end.y - 8, (r.size.x - 28) * progresso, 3), Visual.CREDITOS, 2)
 
 

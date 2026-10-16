@@ -10,6 +10,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 
 ### Cidade Tech
 - Mapa isométrico livre, com ruas, calçadas, praça com fonte, árvores, postes, carros circulando e moradores andando e dando dicas.
+- Guia no cartão da missão que leva automaticamente ao próximo prédio e abre a atividade ao chegar.
 - Personagens em pixel art com contorno, que andam e olham para os lados. Crie o seu: pele, cabelo, cor do cabelo, roupa, cor da roupa e olhar.
 - Ande com WASD ou setas, ou clique no chão ou num prédio: o personagem encontra o caminho sozinho.
 - 23 prédios: 15 empresas fictícias, Central de Missões, Academia Cyber, Beco Hacker, Loja Tech, Bolsa Tech, Sua Sede, Terreno da Startup e Data Center.
@@ -20,6 +21,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 - **Missões principais** em sequência, que ensinam o jogo, e **3 missões diárias** que mudam todo dia.
 - **Sequência de dias jogando**, com bônus crescente na carteira.
 - **7 níveis de carreira**, de Estagiário a Lenda Cyber. Os níveis liberam componentes e empresas.
+- **3 especializações:** Operador de sistemas, Hacker ético e Empreendedor. Ações reais no jogo aumentam a especialização e liberam bônus de lucro, pentest ou renda dos imóveis.
 - **Economia:** contratos pagam 10% do lucro, empresas compradas pagam 20% e a sua startup paga 30%.
 - **Loja Tech:** óculos hacker, headset, boné, gorro, moletom, jaleco, terno, gato e robô de estimação, além de reforços para usar nas operações (seguro cibernético, equipe de plantão, pentest e consultoria).
 - **Startup própria:** escolha nome, setor, forma, cores e símbolo do logo. O prédio aparece na cidade com a sua marca.
@@ -33,6 +35,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 
 ### Aprendizado
 - **Academia Cyber** com 40 lições sobre componentes, conceitos e ataques.
+- **Café Dev:** três cursos curtos sobre redes, defesa em camadas e código seguro, com pergunta, explicação e recompensa única. Há um café público na cidade e os cafés construídos também dão acesso aos cursos.
 - **Beco Hacker:** 16 desafios de código seguro em Python, JavaScript, PHP, Java, Bash, SQL, C e Go. Ache a linha vulnerável e escolha a correção. Cada 3 desafios sobem o nível de código seguro das suas empresas.
 - Relatório diário com "mandou bem" e "por que deu problema", quiz do conselho e dicas dos moradores da cidade.
 
@@ -51,6 +54,15 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 ## Privacidade
 
 O jogo não tem servidor e não coleta dados. Contas e progresso ficam só no seu dispositivo. O PIN é guardado como hash. Todas as empresas, bancos e marcas do jogo são fictícias e criadas para fins educacionais; valores e números são simulações simplificadas. Use o que aprender aqui apenas para defender sistemas.
+
+## Desempenho
+
+Perfis novos no navegador e no celular começam em modo leve: menos moradores e carros, com limite de 30 quadros por segundo. O Perfil permite alternar o modo. A cidade reaproveita a seleção de objetos estáticos visíveis enquanto a câmera quase não se move e pausa a animação do mapa atrás dos painéis. O mapa ainda precisa ser medido em dispositivos lentos reais.
+
+## Desenvolvimento
+
+O planejamento por etapas está em [ETAPAS.md](ETAPAS.md), as decisões técnicas em [MEMORIA.md](MEMORIA.md) e o contexto para continuidade em [HANDOFF_CLAUDE.md](HANDOFF_CLAUDE.md).
+Os testes de integração estão em `tests/testes_integracao.gd` e rodam no GitHub Actions antes de publicar.
 
 ## Rodar o projeto
 
