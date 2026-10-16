@@ -24,6 +24,6 @@ Depois dos contratos de auditoria, transformar lotes repetidos em imóveis ocupa
 
 ## Estado da publicação
 
-O commit funcional `7f772ff88eb95ab29c8eb605c2665e54c3563d7f` está em `main` e no Pages. A release Windows aponta para ele. O teste no Chrome publicado passou pelos novos fluxos e pela Arena CTF com 0 erros de console. Consulte `MEMORIA.md` para os IDs dos workflows e as capturas. O commit desta atualização documental pode ser visto com `git log -1`.
+O commit funcional `225f7b8328af6db0cafd730b9fe4230b7a2211d5` está em `main` e no Pages. A release Windows aponta para ele. O workflow `38976891504` e a implantação `38976983776` concluíram. O teste no Chrome publicado abriu o Hub ZeroSec, escolheu uma proposta, iniciou a auditoria e terminou com 0 erros de console. Consulte `MEMORIA.md` para as capturas. O commit desta atualização documental pode ser visto com `git log -1`.
 
 Ainda faltam compra de edifícios caros, densidade de cidade, mapa maior e revisão visual. Não anuncie essas etapas como prontas. A medição em hardware fraco e celular real também está pendente.
