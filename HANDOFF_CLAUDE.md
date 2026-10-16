@@ -21,3 +21,9 @@ O teste integrado está versionado em `tests/testes_integracao.gd`. Ele preserva
 ## Próxima implementação
 
 Contratos de auditoria: o jogador negocia um valor, o valor aumenta a dificuldade, e o resultado ensina falhas e defesa em um sistema simulado. Depois, transformar lotes repetidos em imóveis ocupados com compra cara e renda que dê propósito ao dinheiro. Registre testes, ganhos e limitações em `MEMORIA.md` e atualize este handoff a cada rodada.
+
+## Estado da publicação
+
+O commit funcional `7f772ff88eb95ab29c8eb605c2665e54c3563d7f` está em `main` e no Pages. A release Windows aponta para ele. O teste no Chrome publicado passou pelos novos fluxos e pela Arena CTF com 0 erros de console. Consulte `MEMORIA.md` para os IDs dos workflows e as capturas. O commit desta atualização documental pode ser visto com `git log -1`.
+
+Ainda faltam contratos negociados, compra de edifícios caros, densidade de cidade, mapa maior e revisão visual. Não anuncie essas etapas como prontas. A medição em hardware fraco e celular real também está pendente.

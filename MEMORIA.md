@@ -38,3 +38,13 @@ DDoS Defense é um jogo educativo de administração de sistemas e ciberseguran�
 - Tamanho da exportação Web e uso de memória do mapa. Aumentar o mapa só depois de resolver a densidade dos terrenos vazios.
 - Balanceamento do dinheiro com bônus de carreira, imóveis e cursos em partidas longas.
 - Uso de tela de toque e navegação por teclado nos novos painéis.
+
+## Validação da etapa 1
+
+- Commit de código: `7f772ff88eb95ab29c8eb605c2665e54c3563d7f`.
+- Suíte versionada em `tests/testes_integracao.gd`: 141 verificações, nenhuma falha no Windows e no GitHub Actions.
+- Workflow `38975277557`: exportação Web e Windows, teste e publicação concluídos. Implantação do Pages `38975372666` concluída.
+- Release Windows `ultima-versao` aponta para o mesmo commit.
+- Teste no Chrome da versão publicada: cadastro, guia até Central de Missões, troca para Hacker ético, curso do Café Dev e 3 perguntas da Arena CTF. Nenhum erro de console. O teste usa conta temporária em perfil isolado do navegador.
+- Capturas temporárias: `C:\Users\carlo\AppData\Local\Temp\claude\D--AI-GAMES\323be71e-d1f0-49d8-a408-349b76bc165f\scratchpad\e2e_codex_result`.
+- Ainda não há medida em computador fraco ou celular real. A etapa 1 reduz trabalho e liga o modo leve, mas não comprova que o desempenho alvo foi alcançado nesses aparelhos.
