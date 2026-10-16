@@ -800,6 +800,9 @@ func atualizar_cidade() -> void:
 	montar_locais()
 	aplicar_solidos()
 	construir_predios()
+	queue_redraw()
+	camada_rotulos.queue_redraw()
+	camada_hud.queue_redraw()
 	if not livre(jogador):
 		for l in locais:
 			var a: Rect2i = l["area"]

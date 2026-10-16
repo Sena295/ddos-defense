@@ -54,7 +54,7 @@ DDoS Defense é um jogo educativo de administração de sistemas e ciberseguran�
 - Prédios prontos custam R$ 14–42 milhões. Depois da compra, rendem 75% mais aluguel que a construção básica equivalente; a renda só entra depois de operar um dia. A interface mostra custo, aluguel e prazo aproximado de retorno. O jogador ainda pode comprar terrenos vazios e construir neles.
 - `imoveis_adquiridos` identifica prédios prontos no save, mantém o bônus de localização e calcula a devolução de 50% do preço pago ao demolir. Saves antigos recebem lista vazia, preservando terrenos construídos anteriormente.
 - A demolição pede confirmação e informa a devolução exata. A suíte local passou em 169 verificações, incluindo interação pela porta, compra pela interface, demolição, save e caminho até as portas. O desenho foi gravado e inspecionado em 1280 × 720; o mapa continuou legível com prédios e terrenos livres.
-- Ainda é preciso publicar e verificar esta etapa no navegador; as capturas locais estão em `scratchpad/imoveis_final_*.png` no diretório temporário da conversa.
+- O primeiro teste publicado da etapa encontrou erros repetidos no WebGL após a compra com o painel aberto. A cidade reconstruía malhas e retornava de `_process` antes de solicitar outro desenho, deixando comandos antigos com referências a malhas liberadas. `atualizar_cidade()` agora solicita redesenho da cidade e das etiquetas. Todas as malhas da cidade foram inspecionadas no teste integrado e possuem superfícies. Verificar novamente no Chrome após o próximo push. As capturas locais estão em `scratchpad/imoveis_final_*.png` no diretório temporário da conversa.
 
 ## Validação da etapa 1
 

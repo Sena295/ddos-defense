@@ -494,6 +494,19 @@ func executar() -> void:
 	checar(m.mundo.solidos.has(Vector2i(39, 17)), "predio da startup bloqueia o terreno")
 	m.paineis.fechar()
 	checar(Dados.IMOVEIS_EXISTENTES.size() == 12 and m.mundo.local_do_lote("lote_s5")["construcao"] == "escola", "cidade nasce com predios ocupando metade dos lotes")
+	var malhas_vazias: Array = []
+	for id_malha in m.mundo.malhas_predios:
+		if m.mundo.malhas_predios[id_malha].get_surface_count() == 0:
+			malhas_vazias.append(id_malha)
+	for objeto in m.mundo.estaticos:
+		if objeto.has("malha") and objeto["malha"].get_surface_count() == 0:
+			malhas_vazias.append(objeto["tipo"])
+	for carro in m.mundo.carros:
+		if carro["malha"].get_surface_count() == 0:
+			malhas_vazias.append("carro")
+	if not malhas_vazias.is_empty():
+		print("   malhas vazias: " + str(malhas_vazias))
+	checar(malhas_vazias.is_empty(), "objetos da cidade possuem superfice desenhavel")
 	var carteira_imovel: float = est.dinheiro()
 	est.perfil["dinheiro"] = 1000.0
 	checar(est.comprar_terreno("lote_s5") != "" and not est.possui_terreno("lote_s5"), "predio caro exige juntar dinheiro")
