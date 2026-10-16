@@ -13,7 +13,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 - Guia no cartão da missão que leva automaticamente ao próximo prédio e abre a atividade ao chegar.
 - Personagens em pixel art com contorno, que andam e olham para os lados. Crie o seu: pele, cabelo, cor do cabelo, roupa, cor da roupa e olhar.
 - Ande com WASD ou setas, ou clique no chão ou num prédio: o personagem encontra o caminho sozinho.
-- 23 prédios: 15 empresas fictícias, Central de Missões, Academia Cyber, Beco Hacker, Loja Tech, Bolsa Tech, Sua Sede, Terreno da Startup e Data Center.
+- 15 empresas fictícias e prédios de missões, aprendizado, compras e infraestrutura. Metade dos lotes antes vazios agora tem negócios com nome próprio; os outros continuam disponíveis para construir.
 
 ### Progresso
 - **Contas locais** com PIN opcional (guardado só como hash), várias contas no mesmo aparelho e salvamento automático.
@@ -25,6 +25,7 @@ Jogo de estratégia, simulação e cibersegurança em que você anda por uma cid
 - **Economia:** contratos pagam 10% do lucro, empresas compradas pagam 20% e a sua startup paga 30%.
 - **Loja Tech:** óculos hacker, headset, boné, gorro, moletom, jaleco, terno, gato e robô de estimação, além de reforços para usar nas operações (seguro cibernético, equipe de plantão, pentest e consultoria).
 - **Startup própria:** escolha nome, setor, forma, cores e símbolo do logo. O prédio aparece na cidade com a sua marca.
+- **Imobiliária:** compre terrenos para criar negócios ou junte dinheiro para adquirir um dos 12 prédios prontos. Os imóveis prontos custam mais e pagam 75% a mais de aluguel por localização. O painel mostra o prazo estimado para recuperar o preço; a renda entra depois de cada dia de operação concluído.
 
 ### Operação das empresas
 - **21 componentes em 4 abas:** Borda (CDN, Anti-DDoS, Geo-bloqueio), Filtros (WAF, IDS/IPS, CAPTCHA, Rate Limit, Login 2FA), Infraestrutura (Load Balancer, Fila, Cache Redis, Torre, Auto Scaling) e Segurança (Backup, Patches, Cofre de senhas, Treinamento, Criptografia, SIEM/SOC, EDR, Honeypot).

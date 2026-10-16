@@ -1130,13 +1130,21 @@ func desenhar_terreno() -> void:
 	if lote.is_empty():
 		return
 	var a: Rect2i = lote["area"]
-	cabecalho(lote["nome"], "%s  ·  %dx%d quadras" % [lote["bairro"], a.size.x, a.size.y])
+	var nome_cabecalho: String = Dados.IMOVEIS_EXISTENTES.get(lote["id"], {}).get("nome", lote["nome"]) if not estado().possui_terreno(lote["id"]) or lote["id"] in estado().perfil["imoveis_adquiridos"] else lote["nome"]
+	cabecalho(nome_cabecalho, "%s  ·  %dx%d quadras" % [lote["bairro"], a.size.x, a.size.y])
 	Visual.texto(self, Vector2(1160, 120), "Carteira: %s" % Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS, HORIZONTAL_ALIGNMENT_RIGHT, 300)
 	var id: String = lote["id"]
+	var existente: Dictionary = Dados.IMOVEIS_EXISTENTES.get(id, {})
 	if not estado().possui_terreno(id):
 		Visual.caixa(self, Rect2(112, 150, 1056, 160), Visual.CARTAO_CLARO, 14)
-		Visual.texto(self, Vector2(140, 196), "Terreno à venda por %s" % Visual.dinheiro(lote["preco"]), 22, Visual.CREDITOS)
-		Visual.paragrafo(self, Vector2(140, 228), "Compre para construir um negócio que rende todo dia ou para fundar sua startup. Terrenos do Distrito Neon são mais caros, mas ficam no coração da cena hacker.", 14, Visual.TEXTO_SUAVE, 980, 1.45, 3)
+		if existente.is_empty():
+			Visual.texto(self, Vector2(140, 196), "Terreno à venda por %s" % Visual.dinheiro(lote["preco"]), 22, Visual.CREDITOS)
+			Visual.paragrafo(self, Vector2(140, 228), "Compre para construir um negócio que rende todo dia ou para fundar sua startup. Terrenos do Distrito Neon são mais caros, mas ficam no coração da cena hacker.", 14, Visual.TEXTO_SUAVE, 980, 1.45, 3)
+		else:
+			var negocio: Dictionary = Dados.CONSTRUCOES[existente["tipo"]]
+			var renda_pronta: float = float(negocio["renda"]) * Dados.BONUS_IMOVEL_PRONTO
+			Visual.texto(self, Vector2(140, 196), "%s · %s" % [existente["nome"], Visual.dinheiro(existente["preco"])], 22, Visual.CREDITOS)
+			Visual.paragrafo(self, Vector2(140, 228), "Prédio pronto para comprar, com localização que rende 75%% a mais: %s por dia operado. Sem operar uma empresa, não há renda. Para recuperar o preço só com aluguel: cerca de %d dias." % [Visual.dinheiro(renda_pronta), ceili(float(existente["preco"]) / renda_pronta)], 14, Visual.TEXTO_SUAVE, 980, 1.45, 3)
 		return
 	var c: String = estado().construcao(id)
 	if c == "startup":
@@ -1149,8 +1157,10 @@ func desenhar_terreno() -> void:
 		Visual.caixa(self, Rect2(112, 150, 1056, 200), Visual.CARTAO_CLARO, 14)
 		Visual.texto(self, Vector2(140, 196), dc["nome"], 24, dc["cor"])
 		Visual.paragrafo(self, Vector2(140, 226), dc["descricao"], 14, Visual.TEXTO_SUAVE, 980, 1.45, 2)
-		Visual.texto(self, Vector2(140, 290), "Rende %s por dia operado%s" % [Visual.dinheiro(dc["renda"]), "  ·  +%d XP" % int(dc["xp"]) if int(dc["xp"]) > 0 else ""], 16, Visual.HUMANO)
+		Visual.texto(self, Vector2(140, 290), "Rende %s por dia operado%s" % [Visual.dinheiro(estado().renda_lote(id)), "  ·  +%d XP" % int(dc["xp"]) if int(dc["xp"]) > 0 else ""], 16, Visual.HUMANO)
 		Visual.texto(self, Vector2(140, 320), "Renda total dos seus imóveis: %s por dia" % Visual.dinheiro(estado().renda_imoveis()), 13, Visual.TEXTO_SUAVE)
+		if dados.get("confirmar_demolicao", false):
+			Visual.paragrafo(self, Vector2(140, 390), "Demolir remove o prédio e encerra sua renda. Você receberá %s, metade do valor pago. O terreno continuará seu e ficará vazio." % Visual.dinheiro(estado().valor_demolicao(id)), 15, Visual.PERIGO, 920, 1.5, 3)
 		return
 	Visual.texto(self, Vector2(112, 160), "Seu terreno está vazio. O que vai construir?", 16, Visual.TEXTO)
 	var opcoes := opcoes_construcao()
@@ -1191,14 +1201,19 @@ func botoes_terreno() -> Array:
 	if lote.is_empty():
 		return lista
 	if not estado().possui_terreno(id):
-		lista.append(botao(Rect2(140, 260, 300, 46), "Comprar por %s" % Visual.dinheiro(lote["preco"]), comprar_terreno.bind(id), estado().dinheiro() >= float(lote["preco"]), "principal"))
+		var preco: float = float(Dados.IMOVEIS_EXISTENTES.get(id, {}).get("preco", lote["preco"]))
+		lista.append(botao(Rect2(140, 260, 300, 46), "Comprar por %s" % Visual.dinheiro(preco), comprar_terreno.bind(id), estado().dinheiro() >= preco, "principal"))
 		lista.append(botao(Rect2(456, 260, 220, 46), "Ver a Imobiliária", abrir.bind("imobiliaria", {})))
 		return lista
 	var c: String = estado().construcao(id)
 	if c == "startup":
 		return lista
 	if c != "":
-		lista.append(botao(Rect2(860, 300, 280, 40), "Demolir (devolve 50%)", demolir.bind(id), true, "perigo"))
+		if dados.get("confirmar_demolicao", false):
+			lista.append(botao(Rect2(140, 470, 210, 44), "Confirmar demolição", demolir.bind(id), true, "perigo"))
+			lista.append(botao(Rect2(366, 470, 150, 44), "Cancelar", cancelar_demolicao))
+		else:
+			lista.append(botao(Rect2(860, 300, 280, 40), "Demolir: +%s" % Visual.dinheiro(estado().valor_demolicao(id)), pedir_demolicao, true, "perigo"))
 		return lista
 	var opcoes := opcoes_construcao()
 	for i in opcoes.size():
@@ -1230,9 +1245,18 @@ func construir(id: String, tipo: String) -> void:
 		principal.confete(Vector2(640, 200), 70)
 
 
+func pedir_demolicao() -> void:
+	dados["confirmar_demolicao"] = true
+
+
+func cancelar_demolicao() -> void:
+	dados.erase("confirmar_demolicao")
+
+
 func demolir(id: String) -> void:
 	estado().demolir(id)
-	principal.avisar("Construção demolida. Metade do custo voltou para a carteira", Visual.CREDITOS)
+	dados.erase("confirmar_demolicao")
+	principal.avisar("Construção demolida. Metade do valor pago voltou para a carteira", Visual.CREDITOS)
 
 
 func retangulo_lote(indice: int) -> Rect2:
@@ -1240,20 +1264,21 @@ func retangulo_lote(indice: int) -> Rect2:
 
 
 func desenhar_imobiliaria() -> void:
-	cabecalho("Imobiliária", "Terrenos da cidade. Renda dos seus imóveis: %s por dia operado." % Visual.dinheiro(estado().renda_imoveis()))
+	cabecalho("Imobiliária", "Terrenos e prédios da cidade. Renda dos seus imóveis: %s por dia operado." % Visual.dinheiro(estado().renda_imoveis()))
 	Visual.texto(self, Vector2(1160, 120), "Carteira: %s" % Visual.dinheiro(estado().dinheiro()), 15, Visual.CREDITOS, HORIZONTAL_ALIGNMENT_RIGHT, 300)
 	for i in Dados.LOTES.size():
 		var lote: Dictionary = Dados.LOTES[i]
+		var existente: Dictionary = Dados.IMOVEIS_EXISTENTES.get(lote["id"], {})
 		var r := retangulo_lote(i)
 		var seu: bool = estado().possui_terreno(lote["id"])
 		Visual.caixa(self, r, Visual.CARTAO_CLARO, 10, Color("a78bfa") if seu else (Visual.BORDA_HOVER if r.has_point(mouse) else Visual.BORDA), 1)
-		Visual.texto(self, r.position + Vector2(12, 22), lote["nome"], 13, Visual.TEXTO)
+		Visual.texto(self, r.position + Vector2(12, 22), existente.get("nome", lote["nome"]), 13, Visual.TEXTO)
 		Visual.texto(self, r.position + Vector2(12, 40), lote["bairro"], 11, Visual.TEXTO_SUAVE)
-		var status := Visual.dinheiro(lote["preco"])
+		var status := Visual.dinheiro(existente.get("preco", lote["preco"]))
 		var cor := Visual.CREDITOS
 		if seu:
 			var c: String = estado().construcao(lote["id"])
-			status = "Seu · vazio" if c == "" else ("Sua startup" if c == "startup" else String(Dados.CONSTRUCOES[c]["nome"]))
+			status = "Seu · vazio" if c == "" else ("Sua startup" if c == "startup" else String(existente["nome"] if lote["id"] in estado().perfil["imoveis_adquiridos"] else Dados.CONSTRUCOES[c]["nome"]))
 			cor = Color("c4b5fd")
 		Visual.texto(self, r.position + Vector2(12, 74), status, 12, cor)
 
@@ -1262,12 +1287,13 @@ func botoes_imobiliaria() -> Array:
 	var lista: Array = []
 	for i in Dados.LOTES.size():
 		var lote: Dictionary = Dados.LOTES[i]
+		var preco: float = float(Dados.IMOVEIS_EXISTENTES.get(lote["id"], {}).get("preco", lote["preco"]))
 		var r := retangulo_lote(i)
 		var rb := Rect2(r.end.x - 84, r.end.y - 34, 76, 26)
 		if estado().possui_terreno(lote["id"]):
 			lista.append(botao(rb, "Abrir", abrir.bind("terreno", {"id": lote["id"]})))
 		else:
-			lista.append(botao(rb, "Comprar", comprar_terreno.bind(lote["id"]), estado().dinheiro() >= float(lote["preco"]), "ouro"))
+			lista.append(botao(rb, "Comprar", comprar_terreno.bind(lote["id"]), estado().dinheiro() >= preco, "ouro"))
 	return lista
 
 

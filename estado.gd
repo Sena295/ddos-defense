@@ -47,7 +47,7 @@ func padrao(nome: String) -> Dictionary:
 		"sequencia": {"ultimo": "", "dias": 0, "melhor": 0},
 		"diarias": {"data": "", "contadores": {}, "resgatadas": []},
 		"mundo": [21.5, 21.2], "operacoes": {}, "quiz_usados": [],
-		"terrenos": {}, "pentests": {"data": "", "feitos": []}, "ctf": {"data": "", "feito": false}, "graficos_leves": OS.has_feature("web") or OS.has_feature("mobile"),
+		"terrenos": {}, "imoveis_adquiridos": [], "pentests": {"data": "", "feitos": []}, "ctf": {"data": "", "feito": false}, "graficos_leves": OS.has_feature("web") or OS.has_feature("mobile"),
 		"carreira": "operador", "carreiras": {"operador": 0, "hacker": 0, "empreendedor": 0}, "cursos_cafe": [],
 		"auditorias": {"concluidas": [], "tentativas": {"data": "", "propostas": {}}},
 	}
@@ -605,11 +605,20 @@ func comprar_terreno(id: String) -> String:
 		return "Terreno inválido"
 	if possui_terreno(id):
 		return "Esse terreno já é seu"
-	if not gastar(float(lote["preco"])):
+	var existente: Dictionary = Dados.IMOVEIS_EXISTENTES.get(id, {})
+	var preco: float = float(existente.get("preco", lote["preco"]))
+	if not gastar(preco):
 		return "Dinheiro insuficiente na carteira"
-	perfil["terrenos"][id] = ""
-	somar("terrenos_comprados")
-	avisar("%s agora é seu! Escolha o que construir nele" % lote["nome"], COR_OURO)
+	if existente.is_empty():
+		perfil["terrenos"][id] = ""
+		somar("terrenos_comprados")
+		avisar("%s agora é seu! Escolha o que construir nele" % lote["nome"], COR_OURO)
+	else:
+		perfil["terrenos"][id] = existente["tipo"]
+		perfil["imoveis_adquiridos"].append(id)
+		somar("imoveis_comprados")
+		registrar_atividade_carreira("empreendedor")
+		avisar("%s agora é seu! A renda entra após cada dia operado" % existente["nome"], COR_OURO)
 	salvar()
 	return ""
 
@@ -634,21 +643,39 @@ func construir(id: String, tipo: String) -> String:
 	return ""
 
 
-func demolir(id: String) -> void:
+func valor_demolicao(id: String) -> float:
 	var tipo := construcao(id)
 	if tipo == "" or tipo == "startup":
+		return 0.0
+	var valor_base: float = float(Dados.CONSTRUCOES[tipo]["custo"])
+	if id in perfil["imoveis_adquiridos"]:
+		valor_base = float(Dados.IMOVEIS_EXISTENTES[id]["preco"])
+	return valor_base * 0.5
+
+
+func demolir(id: String) -> void:
+	var valor: float = valor_demolicao(id)
+	if valor <= 0.0:
 		return
+	if id in perfil["imoveis_adquiridos"]:
+		perfil["imoveis_adquiridos"].erase(id)
 	perfil["terrenos"][id] = ""
-	perfil["dinheiro"] = dinheiro() + float(Dados.CONSTRUCOES[tipo]["custo"]) * 0.5
+	perfil["dinheiro"] = dinheiro() + valor
 	salvar()
+
+
+func renda_lote(id: String) -> float:
+	var tipo := construcao(id)
+	if not Dados.CONSTRUCOES.has(tipo):
+		return 0.0
+	var renda: float = float(Dados.CONSTRUCOES[tipo]["renda"])
+	return renda * Dados.BONUS_IMOVEL_PRONTO if id in perfil["imoveis_adquiridos"] else renda
 
 
 func renda_imoveis() -> float:
 	var total := 0.0
 	for id in perfil.get("terrenos", {}):
-		var tipo := String(perfil["terrenos"][id])
-		if Dados.CONSTRUCOES.has(tipo):
-			total += float(Dados.CONSTRUCOES[tipo]["renda"])
+		total += renda_lote(id)
 	return total
 
 

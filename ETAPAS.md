@@ -17,8 +17,8 @@
 
 ## Etapa 3 — cidade e economia
 
-- [ ] Substituir parte dos terrenos vazios por negócios, prédios e data centers com funções diferentes.
-- [ ] Imóveis existentes mais caros que terrenos, com reforma, aluguel e acesso a novas atividades.
+- [x] Substituir parte dos terrenos vazios por negócios, prédios e data centers com funções diferentes.
+- [ ] Imóveis existentes mais caros que terrenos, com reforma, aluguel e acesso a novas atividades. Compra e aluguel estão implementados; reforma e novas atividades ainda faltam.
 - [ ] Expandir o mapa apenas junto com conteúdo, rotas e medições de desempenho.
 - [ ] Mostrar fluxo de caixa, origem da renda e utilidade de cada compra.
 

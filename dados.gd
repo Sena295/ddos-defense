@@ -312,6 +312,7 @@ const MISSOES := [
 	{"id": "m_pentest", "titulo": "Hacker do bem", "descricao": "Faça 3 pentests autorizados em câmeras ou caixas eletrônicos da cidade.", "contador": "pentests", "alvo": 3, "dinheiro": 600.0, "xp": 220, "requer": "m_lab"},
 	{"id": "m_auditoria", "titulo": "Consultor de segurança", "descricao": "Negocie e conclua uma auditoria de empresa no Hub ZeroSec.", "contador": "auditorias", "alvo": 1, "dinheiro": 750.0, "xp": 250, "requer": "m_pentest"},
 	{"id": "m_construtor", "titulo": "Construtor", "descricao": "Construa 2 imóveis nos seus terrenos.", "contador": "construcoes", "alvo": 2, "dinheiro": 900.0, "xp": 300, "requer": "m_terreno"},
+	{"id": "m_imovel", "titulo": "Patrimônio da cidade", "descricao": "Compre um prédio já construído na Imobiliária e receba o aluguel após operar.", "contador": "imoveis_comprados", "alvo": 1, "dinheiro": 1800.0, "xp": 420, "requer": "m_terreno"},
 	{"id": "m_lenda", "titulo": "Lenda", "descricao": "Chegue ao dia 15 em qualquer empresa.", "contador": "maior_dia", "alvo": 15, "dinheiro": 5000.0, "xp": 1000, "requer": "m_uptime"},
 ]
 
@@ -336,6 +337,23 @@ const CONSTRUCOES := {
 	"escola": {"nome": "Escola de Programação", "custo": 7000.0, "renda": 260.0, "xp": 40, "nivel": 2, "altura": 104.0, "cor": Color("a855f7"), "parede": Color("efe7fb"), "descricao": "Forma novos talentos. Rende dinheiro e experiência todo dia."},
 	"datacenter_p": {"nome": "Mini Data Center", "custo": 9500.0, "renda": 520.0, "xp": 0, "nivel": 2, "altura": 90.0, "cor": Color("38bdf8"), "parede": Color("cfd8e3"), "descricao": "Aluga servidores para outras empresas. A melhor renda da cidade."},
 }
+
+const IMOVEIS_EXISTENTES := {
+	"lote_s1": {"tipo": "loja_hardware", "nome": "Atlas Hardware", "preco": 14000.0},
+	"lote_s3": {"tipo": "coworking", "nome": "Núcleo Cowork", "preco": 18000.0},
+	"lote_s5": {"tipo": "escola", "nome": "Escola Código Vivo", "preco": 22000.0},
+	"lote_s7": {"tipo": "datacenter_p", "nome": "Data Center Aurora", "preco": 34000.0},
+	"lote_s9": {"tipo": "loja_hardware", "nome": "Circuito Tech", "preco": 15000.0},
+	"lote_s11": {"tipo": "coworking", "nome": "Ponto de Encontro", "preco": 19000.0},
+	"lote_s13": {"tipo": "escola", "nome": "Campus Prisma", "preco": 24000.0},
+	"lote_s15": {"tipo": "datacenter_p", "nome": "Servidor Sul", "preco": 36000.0},
+	"lote_s17": {"tipo": "loja_hardware", "nome": "Byte & Peças", "preco": 16000.0},
+	"lote_n1": {"tipo": "coworking", "nome": "Neon Work", "preco": 26000.0},
+	"lote_n3": {"tipo": "escola", "nome": "Instituto Zero", "preco": 30000.0},
+	"lote_n5": {"tipo": "datacenter_p", "nome": "Núcleo Neon", "preco": 42000.0},
+}
+
+const BONUS_IMOVEL_PRONTO := 1.75
 
 const CARREIRAS := {
 	"operador": {"nome": "Operador de sistemas", "descricao": "Mantenha sites no ar. Cada 3 dias de operação elevam sua especialização.", "bonus": "Até 15% a mais sobre sua parte no lucro."},

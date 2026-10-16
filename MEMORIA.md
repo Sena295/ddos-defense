@@ -48,6 +48,14 @@ DDoS Defense é um jogo educativo de administração de sistemas e ciberseguran�
 - Código publicado no commit `225f7b8328af6db0cafd730b9fe4230b7a2211d5`. Workflow de exportação `38976891504` e implantação do Pages `38976983776` concluídos. A release Windows aponta para esse commit.
 - Teste no Chrome da versão publicada: cadastro, cidade, carreira, Café Dev, Arena CTF, Hub ZeroSec, proposta básica e início da matriz. Zero erros de console. Capturas em `C:\Users\carlo\AppData\Local\Temp\claude\D--AI-GAMES\323be71e-d1f0-49d8-a408-349b76bc165f\scratchpad\e2e_auditoria_result`.
 
+## Cidade e imóveis — trabalho em andamento
+
+- 12 dos 24 lotes comerciais do Bairro Sul e Distrito Neon passam a começar ocupados por lojas, coworkings, escolas e pequenos data centers. Os nomes são fictícios. O mapa continua 64 × 44 até haver conteúdo e medida de desempenho para uma expansão.
+- Prédios prontos custam R$ 14–42 milhões. Depois da compra, rendem 75% mais aluguel que a construção básica equivalente; a renda só entra depois de operar um dia. A interface mostra custo, aluguel e prazo aproximado de retorno. O jogador ainda pode comprar terrenos vazios e construir neles.
+- `imoveis_adquiridos` identifica prédios prontos no save, mantém o bônus de localização e calcula a devolução de 50% do preço pago ao demolir. Saves antigos recebem lista vazia, preservando terrenos construídos anteriormente.
+- A demolição pede confirmação e informa a devolução exata. A suíte local passou em 169 verificações, incluindo interação pela porta, compra pela interface, demolição, save e caminho até as portas. O desenho foi gravado e inspecionado em 1280 × 720; o mapa continuou legível com prédios e terrenos livres.
+- Ainda é preciso publicar e verificar esta etapa no navegador; as capturas locais estão em `scratchpad/imoveis_final_*.png` no diretório temporário da conversa.
+
 ## Validação da etapa 1
 
 - Commit de código: `7f772ff88eb95ab29c8eb605c2665e54c3563d7f`.

@@ -4,7 +4,7 @@ Leia `MEMORIA.md` e `ETAPAS.md` antes de editar. O projeto está em `D:\AI GAMES
 
 ## Escopo atual
 
-Esta rodada continua a etapa 2 com contratos negociados de auditoria no Hub ZeroSec, além das otimizações, guia, carreiras e cursos já publicados. Os dados e recompensas estão em `dados.gd` e `estado.gd`; a interface e o minijogo estão em `paineis.gd`; a missão e o guia estão em `dados.gd` e `mundo.gd`.
+O Hub ZeroSec e os contratos negociados foram publicados. A etapa em andamento povoa 12 lotes vazios com prédios comerciais compráveis. O modelo de preço, aluguel e save está em `dados.gd` e `estado.gd`; a imobiliária e o painel de imóvel estão em `paineis.gd`; os prédios e avisos de venda estão em `mundo.gd`.
 
 ## Regras para continuar
 
@@ -16,11 +16,11 @@ Esta rodada continua a etapa 2 com contratos negociados de auditoria no Hub Zero
 
 ## Verificação
 
-O teste integrado está versionado em `tests/testes_integracao.gd`. Ele preserva e restaura o save local e verifica carreira, Café Dev, guia, contratos e os fluxos anteriores. No Windows, execute `godot --headless --path . --fixed-fps 60 -s res://tests/testes_integracao.gd`. Nesta etapa, 156 verificações passaram localmente. O workflow roda esse teste antes da publicação. O Windows local está sem templates Web do Godot 4.7.2; a exportação deve ser verificada no CI e o jogo no navegador após o push.
+O teste integrado está versionado em `tests/testes_integracao.gd`. Ele preserva e restaura o save local e verifica carreira, Café Dev, guia, contratos, compra de imóvel e os fluxos anteriores. No Windows, execute `godot --headless --path . --fixed-fps 60 -s res://tests/testes_integracao.gd`. Nesta etapa, 169 verificações passaram localmente. O workflow roda esse teste antes da publicação. O Windows local está sem templates Web do Godot 4.7.2; a exportação deve ser verificada no CI e o jogo no navegador após o push.
 
 ## Próxima implementação
 
-Depois dos contratos de auditoria, transformar lotes repetidos em imóveis ocupados com compra cara e renda que dê propósito ao dinheiro. Medir desempenho em PC fraco e celular real antes de ampliar o mapa. Registre testes, ganhos e limitações em `MEMORIA.md` e atualize este handoff a cada rodada.
+Após concluir a publicação da etapa imobiliária, acrescentar reforma e funções próprias para escolas e data centers. Medir desempenho em PC fraco e celular real antes de ampliar o mapa. Registre testes, ganhos e limitações em `MEMORIA.md` e atualize este handoff a cada rodada.
 
 ## Estado da publicação
 

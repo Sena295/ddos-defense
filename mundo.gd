@@ -145,8 +145,11 @@ func montar_locais() -> void:
 		locais.append(l)
 	var terrenos := terrenos_atuais()
 	for lote in Dados.LOTES:
-		var c := String(terrenos.get(lote["id"], ""))
-		var l := {"id": lote["id"], "tipo": "lote", "lote": lote["id"], "nome": lote["nome"], "area": lote["area"], "altura": 0.0, "cor": Color("a78bfa"), "parede": Color("ece6fb"), "construcao": c, "comprado": terrenos.has(lote["id"]), "preco": lote["preco"]}
+		var existente: Dictionary = Dados.IMOVEIS_EXISTENTES.get(lote["id"], {})
+		var comprado: bool = terrenos.has(lote["id"])
+		var c := String(terrenos.get(lote["id"], "" if existente.is_empty() else existente["tipo"]))
+		var preco: float = float(existente.get("preco", lote["preco"]))
+		var l := {"id": lote["id"], "tipo": "lote", "lote": lote["id"], "nome": lote["nome"], "area": lote["area"], "altura": 0.0, "cor": Color("a78bfa"), "parede": Color("ece6fb"), "construcao": c, "comprado": comprado, "preco": preco}
 		if c == "startup":
 			l["id"] = "startup"
 			l["tipo"] = "startup"
@@ -157,6 +160,8 @@ func montar_locais() -> void:
 			l["cor"] = dados["cor"]
 			l["parede"] = dados["parede"]
 			l["nome"] = dados["nome"]
+			if not existente.is_empty() and c == existente["tipo"] and (not comprado or lote["id"] in estado().perfil.get("imoveis_adquiridos", [])):
+				l["nome"] = existente["nome"]
 		locais.append(l)
 	estaticos = estaticos.filter(func(e): return e["tipo"] != "predio")
 	for l in locais:
@@ -716,7 +721,7 @@ func seguir_guia() -> void:
 		"m_licoes": "academia", "m_lab": "beco", "m_escala": "mercadonet",
 		"m_loja": "loja", "m_backup": "mercadonet", "m_onda": "mercadonet",
 		"m_incidente": "mercadonet", "m_compra": "bolsa", "m_startup": "imobiliaria",
-		"m_terreno": "imobiliaria", "m_pentest": "zerosec", "m_auditoria": "zerosec", "m_construtor": "imobiliaria"
+		"m_terreno": "imobiliaria", "m_pentest": "zerosec", "m_auditoria": "zerosec", "m_construtor": "imobiliaria", "m_imovel": "imobiliaria"
 	}
 	var id: String = destino_por_missao.get(missao["id"], "missoes")
 	var local := local_por_id(id)
@@ -1366,6 +1371,12 @@ func desenhar_rotulos_fixos(ci: CanvasItem) -> void:
 			Visual.texto(ci, Vector2(rs.position.x, rs.position.y + 12), selo, 10, Color("0b1220"), HORIZONTAL_ALIGNMENT_CENTER, ls)
 			if estado().obter_operacao(l["id"]).size() > 0:
 				ci.draw_circle(Vector2(r.end.x - 2, r.position.y + 2), 5.0, Visual.HUMANO, true, -1.0, true)
+		elif l["tipo"] == "lote" and not l["comprado"] and String(l["construcao"]) != "":
+			var selo_imovel := "À VENDA"
+			var largura_selo := Visual.largura_texto(selo_imovel, 10) + 12
+			var r_selo := Rect2(ancora.x - largura_selo / 2, r.end.y + 3, largura_selo, 16)
+			Visual.caixa(ci, r_selo, Visual.CREDITOS, 8)
+			Visual.texto(ci, Vector2(r_selo.position.x, r_selo.position.y + 12), selo_imovel, 10, Color("0b1220"), HORIZONTAL_ALIGNMENT_CENTER, largura_selo)
 
 
 func desenhar_rotulos(ci: CanvasItem) -> void:
