@@ -1,12 +1,27 @@
+<div align="center">
+
 # DDoS Defense
 
-Jogo de estratégia, simulação e cibersegurança em que você anda por uma cidade isométrica no estilo Habbo, aceita contratos, compra empresas, funda a sua própria startup e monta a arquitetura que mantém tudo no ar contra picos de tráfego, bots e ondas de hackers. Feito em Godot 4 com GDScript.
+**Jogo de estratégia, simulação e cibersegurança: ande por uma cidade isométrica, aceite contratos, compre empresas, funde a sua startup e monte a arquitetura que mantém tudo no ar contra picos de tráfego, bots e ondas de hackers.**
 
-**Jogar no navegador:** https://sena295.github.io/ddos-defense/
+[![Jogar no navegador](https://img.shields.io/badge/jogar-no_navegador-FF7020?style=for-the-badge)](https://sena295.github.io/ddos-defense/)
+[![Versão Windows](https://img.shields.io/badge/baixar-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Sena295/ddos-defense/releases/tag/ultima-versao)
+![Godot](https://img.shields.io/badge/Godot_4-478CBF?style=flat-square&logo=godotengine&logoColor=white)
+![GDScript](https://img.shields.io/badge/GDScript-355570?style=flat-square&logo=godotengine&logoColor=white)
 
-**Versão Windows:** baixe o zip em [Releases](https://github.com/Sena295/ddos-defense/releases/tag/ultima-versao), extraia e abra `DDoS-Defense.exe`.
+[**Jogar agora**](https://sena295.github.io/ddos-defense/) · [Releases](https://github.com/Sena295/ddos-defense/releases) · [Reportar problema](https://github.com/Sena295/ddos-defense/issues)
 
-## O que tem no jogo
+</div>
+
+---
+
+## Sobre o projeto
+
+Você anda por uma cidade isométrica no estilo Habbo, aceita contratos, compra empresas e funda a sua própria startup. Em cada empresa, monta a arquitetura (CDN, WAF, balanceadores, backups...) que segura o tráfego de clientes, bots e hackers. O jogo ensina conceitos reais de defesa de sistemas de forma prática. Feito em **Godot 4** com **GDScript**.
+
+> **Todas as empresas, bancos e marcas do jogo são fictícias** e criadas para fins educacionais. Valores e números são simulações simplificadas.
+
+## Funcionalidades
 
 ### Cidade Tech
 - Mapa isométrico livre, com ruas, calçadas, praça com fonte, árvores, postes, carros circulando e moradores andando e dando dicas.
@@ -66,7 +81,13 @@ Perfis novos no navegador e no celular começam em modo leve: menos moradores e 
 O planejamento por etapas está em [ETAPAS.md](ETAPAS.md), as decisões técnicas em [MEMORIA.md](MEMORIA.md) e o contexto para continuidade em [HANDOFF_CLAUDE.md](HANDOFF_CLAUDE.md).
 Os testes de integração estão em `tests/testes_integracao.gd` e rodam no GitHub Actions antes de publicar.
 
-## Rodar o projeto
+## Como usar
+
+**Online:** [jogue no navegador](https://sena295.github.io/ddos-defense/).
+
+**Windows:** baixe o zip em [Releases](https://github.com/Sena295/ddos-defense/releases/tag/ultima-versao), extraia e abra `DDoS-Defense.exe`.
+
+**Rodar o projeto a partir do código:**
 
 1. Instale o [Godot 4.7](https://godotengine.org/download).
 2. Abra o Godot, clique em Importar e escolha o arquivo `project.godot`.
@@ -88,3 +109,16 @@ Os testes de integração estão em `tests/testes_integracao.gd` e rodam no GitH
 ## Publicação
 
 A cada push na branch `main`, o GitHub Actions (`.github/workflows/publicar.yml`) exporta o jogo para Web e Windows, publica a versão Web no GitHub Pages e atualiza o zip do Windows nas Releases.
+
+## Tecnologias
+
+- **Godot 4.7** e **GDScript**, sem dependências externas.
+- **GitHub Actions** para exportar Web e Windows e publicar no GitHub Pages e nas Releases.
+
+## Pacotes
+
+Este projeto não depende de pacotes (npm, pip etc.) e não publica pacotes.
+
+## Autor
+
+Desenvolvido por **Carlos Sena**, [@Sena295](https://github.com/Sena295).
